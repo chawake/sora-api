@@ -40,6 +40,25 @@ class ApiKeyUpdate(BaseModel):
     is_enabled: Optional[bool] = Field(None, description="是否启用")
     notes: Optional[str] = Field(None, description="备注")
 
+# 批量操作基础模型
+class BatchOperation(BaseModel):
+    action: str = Field(..., description="操作类型：import, enable, disable, delete")
+    key_ids: Optional[List[str]] = Field(None, description="要操作的密钥ID列表")
+
+# 批量导入的密钥项模型
+class ImportKeyItem(BaseModel):
+    name: str = Field(..., description="密钥名称")
+    key: str = Field(..., description="密钥值")
+    weight: int = Field(1, description="权重")
+    rate_limit: int = Field(60, description="速率限制(每分钟请求数)")
+    enabled: bool = Field(True, description="是否启用")
+    notes: Optional[str] = Field(None, description="备注")
+
+# 批量导入模型
+class BatchImportOperation(BatchOperation):
+    keys: List[ImportKeyItem] = Field(..., description="要导入的密钥列表")
+    key_ids: Optional[List[str]] = None
+
 # 系统配置更新模型
 class ConfigUpdate(BaseModel):
     PROXY_HOST: Optional[str] = Field(None, description="代理服务器主机")

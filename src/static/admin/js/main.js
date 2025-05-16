@@ -441,6 +441,14 @@ async function apiRequest(url, options = {}) {
     options.headers = options.headers || {};
     options.headers['Authorization'] = `Bearer ${adminKey}`;
     
+    // 如果是POST/PUT请求且有body，确保设置正确的Content-Type
+    if ((options.method === 'POST' || options.method === 'PUT') && options.body) {
+        // 确保Content-Type正确设置
+        if (!options.headers['Content-Type']) {
+            options.headers['Content-Type'] = 'application/json';
+        }
+    }
+    
     // 发送请求
     try {
         const response = await fetch(url, options);
@@ -465,7 +473,13 @@ async function apiRequest(url, options = {}) {
         
         // 其他错误
         if (!response.ok) {
-            throw new Error(`请求失败: ${response.statusText}`);
+            // 尝试解析错误消息
+            try {
+                const errorData = await response.json();
+                throw new Error(`请求失败: ${response.status} - ${errorData.detail || errorData.message || response.statusText}`);
+            } catch (e) {
+                throw new Error(`请求失败: ${response.status} ${response.statusText}`);
+            }
         }
         
         return await response.json();
@@ -1550,17 +1564,32 @@ async function confirmImport() {
         
         console.log('准备发送批量导入请求，数据预览：', importPreviewData.slice(0, 2));
         
-        // 构建请求数据
+        // 预处理导入数据，简化长密钥
+        const processedData = importPreviewData.map(item => {
+            // 创建一个新对象，避免修改原始数据
+            return {
+                name: item.name,
+                key: item.key,
+                weight: item.weight || 1,
+                rate_limit: item.rate_limit || 60,
+                enabled: item.enabled !== undefined ? item.enabled : true
+            };
+        });
+        
+        // 构建请求数据 - 简化格式
         const requestData = {
             action: "import",
-            keys: importPreviewData
+            keys: processedData
         };
         
-        console.log('发送请求到 /api/keys/batch，请求数据：', requestData);
+        console.log('发送请求到 /api/keys/batch，请求长度：', JSON.stringify(requestData).length);
         
         // 发送请求
         const response = await apiRequest('/api/keys/batch', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(requestData)
         });
         
