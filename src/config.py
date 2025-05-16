@@ -14,6 +14,10 @@ class Config:
     # 基础URL配置
     BASE_URL = os.getenv("BASE_URL", f"http://0.0.0.0:{PORT}")
     
+    # 静态文件路径前缀，用于处理应用部署在子路径的情况
+    # 例如: /sora-api 表示应用部署在 /sora-api 下
+    STATIC_PATH_PREFIX = os.getenv("STATIC_PATH_PREFIX", "")
+    
     # 代理配置
     PROXY_HOST = os.getenv("PROXY_HOST", "")
     PROXY_PORT = os.getenv("PROXY_PORT", "")

@@ -55,13 +55,27 @@ async def download_and_save_image(image_url: str) -> str:
         return image_url
     
     # 检查是否已经是本地URL
+    # 1. 检查常规的静态文件URL模式
     if image_url.startswith("/static/") or "/static/" in image_url:
         if IMAGE_DEBUG:
-            logger.debug(f"URL已是本地路径: {image_url}")
+            logger.debug(f"URL已是本地静态路径: {image_url}")
         
         # 如果是相对路径，补充完整的URL
         if image_url.startswith("/static/"):
             return f"{Config.BASE_URL}{image_url}"
+        return image_url
+    
+    # 2. 检查其他可能的URL格式，例如记录的错误格式 /sora-api/images/
+    external_path_prefix = os.getenv("STATIC_PATH_PREFIX", "")
+    if external_path_prefix and image_url.startswith(f"{external_path_prefix}/images/"):
+        if IMAGE_DEBUG:
+            logger.debug(f"URL已是自定义前缀路径: {image_url}")
+        
+        # 如果是相对路径，补充完整的URL
+        from urllib.parse import urlparse
+        parsed_base_url = urlparse(Config.BASE_URL)
+        if image_url.startswith("/"):
+            return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
         return image_url
     
     try:
@@ -122,13 +136,32 @@ async def download_and_save_image(image_url: str) -> str:
             return image_url
         
         # 返回本地URL
-        # 获取图片保存目录相对于静态目录的路径
+        # 1. 获取图片保存目录相对于静态目录的路径
         image_dir_relative = os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)
-        relative_url = f"/static/{image_dir_relative}/{filename}".replace("\\", "/")
-        full_url = f"{Config.BASE_URL}{relative_url}"
+        
+        # 2. 处理基础URL可能包含子路径的情况
+        from urllib.parse import urlparse
+        parsed_base_url = urlparse(Config.BASE_URL)
+        base_path = parsed_base_url.path.rstrip('/')
+        
+        # 3. 如果从错误日志中发现使用了特定路径格式，可以在这里添加兼容代码
+        # 检查是否有外部路径覆盖配置
+        external_path_prefix = os.getenv("STATIC_PATH_PREFIX", "")
+        
+        if external_path_prefix:
+            # 使用外部配置的路径
+            relative_url = f"{external_path_prefix}/images/{filename}"
+        else:
+            # 使用正常的静态资源路径
+            relative_url = f"{base_path}/static/{image_dir_relative}/{filename}".replace("\\", "/")
+            
+        # 统一处理重复斜杠问题
+        relative_url = relative_url.replace("//", "/")
+        full_url = f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{relative_url}"
         
         if IMAGE_DEBUG:
             logger.debug(f"图片保存成功: {full_url}")
+            logger.debug(f"相对路径: {relative_url}")
         
         return full_url
     except Exception as e:

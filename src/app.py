@@ -96,6 +96,13 @@ async def startup_event():
     logger.info(f"图片保存目录: {Config.IMAGE_SAVE_DIR}")
     logger.info(f"相对路径: {os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)}")
     
+    # 检查静态文件路径前缀
+    if Config.STATIC_PATH_PREFIX:
+        logger.info(f"静态文件路径前缀: {Config.STATIC_PATH_PREFIX}")
+        logger.info(f"图片URL将使用格式: {Config.STATIC_PATH_PREFIX}/images/filename.png")
+    else:
+        logger.info(f"未设置静态文件路径前缀，使用标准路径: /static/images/filename.png")
+    
     # 打印配置信息
     Config.print_config()
 
@@ -109,6 +116,23 @@ async def shutdown_event():
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory=Config.STATIC_DIR), name="static")
+
+# 如果设置了静态文件路径前缀，添加兼容路由
+if Config.STATIC_PATH_PREFIX:
+    # 创建一个特殊路由来处理自定义路径下的图片请求
+    images_path = f"{Config.STATIC_PATH_PREFIX}/images"
+    images_path = images_path.lstrip("/")  # 去除开头的斜杠以匹配FastAPI的路由格式
+    
+    @app.get(f"/{images_path}/{{filename}}")
+    async def get_custom_path_image(filename: str):
+        """处理自定义路径的图片请求"""
+        # 构建完整的文件路径
+        file_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        else:
+            logger.warning(f"请求的图片不存在: {file_path}")
+            raise HTTPException(status_code=404, detail="图片不存在")
 
 # 管理界面路由
 @app.get("/admin")
