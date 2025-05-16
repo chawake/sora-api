@@ -193,12 +193,11 @@ async def test_key(key_data: ApiKeyCreate, admin_token = Depends(verify_admin_jw
         }
 
 @router.post("/keys/batch")
-async def batch_operation(operation: BatchOperation, admin_token = Depends(verify_admin_jwt)):
+async def batch_operation(operation: Dict[str, Any], admin_token = Depends(verify_admin_jwt)):
     """批量操作API密钥"""
     try:
-        logger.info(f"接收到批量操作请求: {operation.action}")
-        
-        action = operation.action
+        action = operation.get("action")
+        logger.info(f"接收到批量操作请求: {action}")
         
         if not action:
             logger.warning("批量操作缺少action参数")
@@ -207,36 +206,24 @@ async def batch_operation(operation: BatchOperation, admin_token = Depends(verif
         logger.info(f"批量操作类型: {action}")
         
         if action == "import":
-            # 使用不同的模型类处理导入请求
-            try:
-                # 尝试将请求转换为BatchImportOperation模型
-                import_operation = BatchImportOperation(**operation.dict())
-                keys_data = import_operation.keys
-                
-                if not keys_data:
-                    logger.warning("批量导入缺少keys数据")
-                    raise HTTPException(status_code=400, detail="未提供密钥数据")
-                
-                logger.info(f"准备导入 {len(keys_data)} 个密钥")
-                
-                # 转换为key_manager需要的格式
-                keys_for_import = []
-                for key_item in keys_data:
-                    key_value = key_item.key.strip()
+            # 批量导入API密钥
+            keys_data = operation.get("keys", [])
+            if not keys_data:
+                logger.warning("批量导入缺少keys数据")
+                raise HTTPException(status_code=400, detail="未提供密钥数据")
+            
+            logger.info(f"准备导入 {len(keys_data)} 个密钥")
+            
+            # 对每个密钥处理Bearer前缀
+            for key_data in keys_data:
+                if isinstance(key_data, dict):
+                    key_value = key_data.get("key", "").strip()
                     if key_value and not key_value.startswith("Bearer "):
-                        key_value = f"Bearer {key_value}"
-                    
-                    keys_for_import.append({
-                        "name": key_item.name,
-                        "key": key_value,
-                        "weight": key_item.weight,
-                        "rate_limit": key_item.rate_limit,
-                        "enabled": key_item.enabled,
-                        "notes": key_item.notes
-                    })
-                
-                # 执行批量导入
-                result = key_manager.batch_import_keys(keys_for_import)
+                        key_data["key"] = f"Bearer {key_value}"
+            
+            # 执行批量导入
+            try:
+                result = key_manager.batch_import_keys(keys_data)
                 logger.info(f"导入结果: 成功={result['imported']}, 跳过={result['skipped']}")
                 
                 # 通过Config永久保存所有密钥
@@ -250,35 +237,6 @@ async def batch_operation(operation: BatchOperation, admin_token = Depends(verif
                 }
             except Exception as e:
                 logger.error(f"批量导入密钥错误: {str(e)}", exc_info=True)
-                # 尝试从原始请求中提取keys
-                keys_data = getattr(operation, 'keys', None)
-                if keys_data and isinstance(keys_data, list):
-                    logger.info(f"使用原始请求格式处理 {len(keys_data)} 个密钥")
-                    
-                    # 对每个密钥处理Bearer前缀
-                    for key_data in keys_data:
-                        if isinstance(key_data, dict):
-                            key_value = key_data.get("key", "").strip()
-                            if key_value and not key_value.startswith("Bearer "):
-                                key_data["key"] = f"Bearer {key_value}"
-                    
-                    # 执行批量导入
-                    try:
-                        result = key_manager.batch_import_keys(keys_data)
-                        logger.info(f"导入结果: 成功={result['imported']}, 跳过={result['skipped']}")
-                        
-                        # 通过Config永久保存所有密钥
-                        Config.save_api_keys(key_manager.keys)
-                        
-                        return {
-                            "success": True,
-                            "message": f"成功导入 {result['imported']} 个密钥，跳过 {result['skipped']} 个重复密钥",
-                            "imported": result["imported"],
-                            "skipped": result["skipped"]
-                        }
-                    except Exception as inner_e:
-                        logger.error(f"原始格式导入失败: {str(inner_e)}", exc_info=True)
-                
                 raise HTTPException(status_code=500, detail=f"导入密钥失败: {str(e)}")
                 
         elif action not in ["enable", "disable", "delete"]:
@@ -286,7 +244,7 @@ async def batch_operation(operation: BatchOperation, admin_token = Depends(verif
             raise HTTPException(status_code=400, detail=f"不支持的操作: {action}")
             
         # 对于非导入操作，需要提供key_ids
-        key_ids = operation.key_ids
+        key_ids = operation.get("key_ids", [])
         if not key_ids:
             logger.warning(f"{action}操作缺少key_ids参数")
             raise HTTPException(status_code=400, detail="缺少必要参数: key_ids")

@@ -1564,25 +1564,24 @@ async function confirmImport() {
         
         console.log('准备发送批量导入请求，数据预览：', importPreviewData.slice(0, 2));
         
-        // 预处理导入数据，简化长密钥
-        const processedData = importPreviewData.map(item => {
-            // 创建一个新对象，避免修改原始数据
-            return {
-                name: item.name,
-                key: item.key,
+        // 简化数据处理
+        const requestData = {
+            action: "import",
+            keys: []
+        };
+        
+        // 手动将每个importPreviewData项转换为普通对象
+        for (const item of importPreviewData) {
+            requestData.keys.push({
+                name: item.name || "",
+                key: item.key || "",
                 weight: item.weight || 1,
                 rate_limit: item.rate_limit || 60,
                 enabled: item.enabled !== undefined ? item.enabled : true
-            };
-        });
+            });
+        }
         
-        // 构建请求数据 - 简化格式
-        const requestData = {
-            action: "import",
-            keys: processedData
-        };
-        
-        console.log('发送请求到 /api/keys/batch，请求长度：', JSON.stringify(requestData).length);
+        console.log('发送请求到 /api/keys/batch，请求数据：', requestData);
         
         // 发送请求
         const response = await apiRequest('/api/keys/batch', {
