@@ -1097,7 +1097,10 @@ async function loadSettings() {
         document.getElementById('proxy-host').value = data.PROXY_HOST || '';
         document.getElementById('proxy-port').value = data.PROXY_PORT || '';
         document.getElementById('proxy-user').value = data.PROXY_USER || '';
-        document.getElementById('proxy-pass').value = data.PROXY_PASS || '';
+        document.getElementById('proxy-pass').value = '';
+        
+        // 设置基础URL
+        document.getElementById('base-url').value = data.BASE_URL || '';
         
         // 设置图片本地化配置
         document.getElementById('image-localization').checked = data.IMAGE_LOCALIZATION || false;
@@ -1117,6 +1120,7 @@ async function saveSettings() {
             PROXY_PORT: document.getElementById('proxy-port').value,
             PROXY_USER: document.getElementById('proxy-user').value,
             PROXY_PASS: document.getElementById('proxy-pass').value,
+            BASE_URL: document.getElementById('base-url').value,
             IMAGE_LOCALIZATION: document.getElementById('image-localization').checked,
             IMAGE_SAVE_DIR: document.getElementById('image-save-dir').value || 'src/static/images',
             save_to_env: true

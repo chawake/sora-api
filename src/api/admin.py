@@ -360,6 +360,13 @@ async def update_config(config_data: ConfigUpdate, admin_token = Depends(verify_
             # 更新环境变量
             os.environ["PROXY_PASS"] = config_data.PROXY_PASS
             
+        # 更新基础URL设置
+        if config_data.BASE_URL is not None:
+            Config.BASE_URL = config_data.BASE_URL
+            changes.append("BASE_URL")
+            # 更新环境变量
+            os.environ["BASE_URL"] = config_data.BASE_URL
+            
         # 更新图片本地化设置
         if config_data.IMAGE_LOCALIZATION is not None:
             Config.IMAGE_LOCALIZATION = config_data.IMAGE_LOCALIZATION

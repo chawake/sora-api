@@ -65,6 +65,7 @@ class ConfigUpdate(BaseModel):
     PROXY_PORT: Optional[str] = Field(None, description="代理服务器端口")
     PROXY_USER: Optional[str] = Field(None, description="代理服务器用户名")
     PROXY_PASS: Optional[str] = Field(None, description="代理服务器密码")
+    BASE_URL: Optional[str] = Field(None, description="基础URL，用于图片访问地址")
     IMAGE_LOCALIZATION: Optional[bool] = Field(None, description="是否启用图片本地化存储")
     IMAGE_SAVE_DIR: Optional[str] = Field(None, description="图片保存目录")
     save_to_env: bool = Field(True, description="是否保存到环境变量文件")
