@@ -3,6 +3,7 @@ import uuid
 import aiohttp
 import aiofiles
 import logging
+import ssl
 from urllib.parse import urlparse
 from .config import Config
 
@@ -11,6 +12,31 @@ logger = logging.getLogger("sora-api.utils")
 
 # 图片本地化调试开关
 IMAGE_DEBUG = os.getenv("IMAGE_DEBUG", "").lower() in ("true", "1", "yes")
+
+# 修复Python 3.11之前版本中HTTPS代理处理HTTPS请求的问题
+# 参考: https://docs.aiohttp.org/en/stable/client_advanced.html#proxy-support
+try:
+    import aiohttp.connector
+    orig_create_connection = aiohttp.connector.TCPConnector._create_connection
+
+    async def patched_create_connection(self, req, traces, timeout):
+        if req.ssl and req.proxy and req.proxy.scheme == 'https':
+            # 为代理连接创建SSL上下文
+            proxy_ssl = ssl.create_default_context()
+            req.proxy_ssl = proxy_ssl
+            
+            if IMAGE_DEBUG:
+                logger.debug("已应用HTTPS代理补丁")
+        
+        return await orig_create_connection(self, req, traces, timeout)
+    
+    # 应用猴子补丁
+    aiohttp.connector.TCPConnector._create_connection = patched_create_connection
+    
+    if IMAGE_DEBUG:
+        logger.debug("已启用aiohttp HTTPS代理支持补丁")
+except Exception as e:
+    logger.warning(f"应用HTTPS代理补丁失败: {e}")
 
 async def download_and_save_image(image_url: str) -> str:
     """
