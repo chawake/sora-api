@@ -134,6 +134,18 @@ if Config.STATIC_PATH_PREFIX:
             logger.warning(f"请求的图片不存在: {file_path}")
             raise HTTPException(status_code=404, detail="图片不存在")
 
+# 添加一个标准的图片处理路由，确保无论路径前缀如何都能访问图片
+@app.get("/static/images/{filename}")
+async def get_static_image(filename: str):
+    """处理标准路径的图片请求"""
+    # 构建完整的文件路径
+    file_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    else:
+        logger.warning(f"请求的图片不存在: {file_path}")
+        raise HTTPException(status_code=404, detail="图片不存在")
+
 # 管理界面路由
 @app.get("/admin")
 async def admin_panel():

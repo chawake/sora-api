@@ -65,17 +65,22 @@ async def download_and_save_image(image_url: str) -> str:
             return f"{Config.BASE_URL}{image_url}"
         return image_url
     
-    # 2. 检查其他可能的URL格式，例如记录的错误格式 /sora-api/images/
-    external_path_prefix = os.getenv("STATIC_PATH_PREFIX", "")
-    if external_path_prefix and image_url.startswith(f"{external_path_prefix}/images/"):
-        if IMAGE_DEBUG:
-            logger.debug(f"URL已是自定义前缀路径: {image_url}")
-        
-        # 如果是相对路径，补充完整的URL
-        parsed_base_url = urlparse(Config.BASE_URL)
-        if image_url.startswith("/"):
-            return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
-        return image_url
+    # 2. 检查其他可能的URL格式，包括自定义前缀路径 /prefix/images/
+    static_path_prefix = Config.STATIC_PATH_PREFIX
+    if static_path_prefix:
+        # 确保前缀以/开头
+        if not static_path_prefix.startswith('/'):
+            static_path_prefix = f"/{static_path_prefix}"
+            
+        if image_url.startswith(f"{static_path_prefix}/images/"):
+            if IMAGE_DEBUG:
+                logger.debug(f"URL已是自定义前缀路径: {image_url}")
+            
+            # 如果是相对路径，补充完整的URL
+            parsed_base_url = urlparse(Config.BASE_URL)
+            if image_url.startswith("/"):
+                return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
+            return image_url
     
     try:
         # 生成文件名和保存路径
@@ -135,23 +140,31 @@ async def download_and_save_image(image_url: str) -> str:
             return image_url
         
         # 返回本地URL
-        # 1. 获取图片保存目录相对于静态目录的路径
-        image_dir_relative = os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)
+        # 获取文件名
+        filename = os.path.basename(save_path)
         
-        # 2. 处理基础URL可能包含子路径的情况
+        # 处理基础URL可能包含子路径的情况
         parsed_base_url = urlparse(Config.BASE_URL)
         base_path = parsed_base_url.path.rstrip('/')
         
-        # 3. 如果从错误日志中发现使用了特定路径格式，可以在这里添加兼容代码
-        # 检查是否有外部路径覆盖配置
-        external_path_prefix = os.getenv("STATIC_PATH_PREFIX", "")
+        # 检查是否有静态文件路径前缀配置
+        static_path_prefix = Config.STATIC_PATH_PREFIX
         
-        if external_path_prefix:
-            # 使用外部配置的路径
-            relative_url = f"{external_path_prefix}/images/{filename}"
+        if static_path_prefix:
+            # 使用配置的路径前缀生成URL
+            # 确保路径前缀以/开头
+            if not static_path_prefix.startswith('/'):
+                static_path_prefix = f"/{static_path_prefix}"
+                
+            # 生成相对URL路径
+            relative_url = f"{static_path_prefix}/images/{filename}"
         else:
-            # 使用正常的静态资源路径
-            relative_url = f"{base_path}/static/{image_dir_relative}/{filename}".replace("\\", "/")
+            # 使用标准静态资源路径
+            relative_url = f"/static/images/{filename}"
+            
+        # 如果基础路径不为空，添加到相对URL前
+        if base_path:
+            relative_url = f"{base_path}{relative_url}"
             
         # 统一处理重复斜杠问题
         relative_url = relative_url.replace("//", "/")
