@@ -1548,15 +1548,25 @@ async function confirmImport() {
         importBtn.disabled = true;
         importBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导入中...';
         
+        console.log('准备发送批量导入请求，数据预览：', importPreviewData.slice(0, 2));
+        
+        // 构建请求数据
+        const requestData = {
+            action: "import",
+            keys: importPreviewData
+        };
+        
+        console.log('发送请求到 /api/keys/batch，请求数据：', requestData);
+        
         // 发送请求
-        const response = await apiRequest('/api/admin/keys/batch', {
+        const response = await apiRequest('/api/keys/batch', {
             method: 'POST',
-            body: JSON.stringify({
-                keys: importPreviewData
-            })
+            body: JSON.stringify(requestData)
         });
         
-        if (response.success) {
+        console.log('收到批量导入响应：', response);
+        
+        if (response && response.success) {
             // 隐藏模态框
             bootstrap.Modal.getInstance(document.getElementById('importKeysModal')).hide();
             
@@ -1571,11 +1581,14 @@ async function confirmImport() {
                 message += `，${skippedCount} 个重复密钥已跳过`;
             }
             showToast(message, 'success');
+            console.log('导入成功完成');
         } else {
-            showToast('导入失败: ' + (response.message || '未知错误'), 'danger');
+            const errorMsg = (response && response.message) ? response.message : '未知错误';
+            showToast('导入失败: ' + errorMsg, 'danger');
+            console.error('导入失败，服务器响应：', response);
         }
     } catch (error) {
-        console.error('导入失败:', error);
+        console.error('导入过程中发生异常:', error);
         showToast('导入失败: ' + error.message, 'danger');
     } finally {
         // 恢复按钮状态
