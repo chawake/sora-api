@@ -12,8 +12,8 @@ from .config import Config
 
 class SoraImageGenerator:
     def __init__(self, proxy_host=None, proxy_port=None, proxy_user=None, proxy_pass=None, auth_token=None):
-        # 添加DEBUG开关，默认关闭
-        self.DEBUG = os.getenv("SORA_DEBUG", "").lower() in ("true", "1", "yes")
+        # 使用Config.VERBOSE_LOGGING替代直接从环境变量读取SORA_DEBUG
+        self.DEBUG = Config.VERBOSE_LOGGING
         
         # 设置代理
         if proxy_host and proxy_port:
@@ -525,7 +525,24 @@ class SoraImageGenerator:
     def _submit_task(self, payload, referer="https://sora.chatgpt.com/explore"):
         """提交生成任务 (通用，接受payload字典)"""
         headers = self._get_dynamic_headers(content_type="application/json", referer=referer)
+        
+        # 获取当前的auth_token用于最后可能的释放
+        current_auth_token = self.auth_token
+        
         try:
+            # 检查是否可以导入key_manager并标记密钥为工作中
+            try:
+                from .key_manager import key_manager
+                # 生成一个临时任务ID，用于标记密钥工作状态
+                temp_task_id = f"pending_task_{self._generate_random_id()}"
+                key_manager.mark_key_as_working(self.auth_token, temp_task_id)
+            except ImportError:
+                if self.DEBUG:
+                    print(f"无法导入key_manager，无法标记密钥工作状态")
+            except Exception as e:
+                if self.DEBUG:
+                    print(f"标记密钥工作状态时发生错误: {str(e)}")
+                
             response = self.scraper.post(
                 self.gen_url,
                 headers=headers,
@@ -538,8 +555,30 @@ class SoraImageGenerator:
                     result = response.json()
                     task_id = result.get("id")
                     if task_id:
+                        # 更新任务ID为实际分配的ID
+                        try:
+                            from .key_manager import key_manager
+                            # 更新工作中状态的任务ID
+                            key_manager.release_key(self.auth_token)  # 先释放临时ID
+                            key_manager.mark_key_as_working(self.auth_token, task_id)  # 用真实ID重新标记
+                            if self.DEBUG:
+                                print(f"已将密钥标记为工作中，任务ID: {task_id}")
+                        except (ImportError, Exception) as e:
+                            if self.DEBUG:
+                                print(f"更新密钥工作状态时发生错误: {str(e)}")
+                        
                         return task_id
                     else:
+                        # 任务提交成功但未返回ID，释放密钥
+                        try:
+                            from .key_manager import key_manager
+                            key_manager.release_key(self.auth_token)
+                            if self.DEBUG:
+                                print(f"任务提交未返回ID，已释放密钥")
+                        except (ImportError, Exception) as e:
+                            if self.DEBUG:
+                                print(f"释放密钥时发生错误: {str(e)}")
+                        
                         # 检查响应中是否有可能表明API密钥问题的信息
                         response_text = response.text.lower()
                         is_auth_issue = False
@@ -574,10 +613,30 @@ class SoraImageGenerator:
                             print(f"提交任务成功，但响应中未找到任务ID。响应: {response.text}")
                         return None
                 except json.JSONDecodeError:
+                    # 释放密钥
+                    try:
+                        from .key_manager import key_manager
+                        key_manager.release_key(self.auth_token)
+                        if self.DEBUG:
+                            print(f"JSON解析失败，已释放密钥")
+                    except (ImportError, Exception) as e:
+                        if self.DEBUG:
+                            print(f"释放密钥时发生错误: {str(e)}")
+                            
                     if self.DEBUG:
                         print(f"提交任务成功，但无法解析响应JSON。状态码: {response.status_code}, 响应: {response.text}")
                     return None
             else:
+                # 释放密钥
+                try:
+                    from .key_manager import key_manager
+                    key_manager.release_key(self.auth_token)
+                    if self.DEBUG:
+                        print(f"请求失败，已释放密钥")
+                except (ImportError, Exception) as e:
+                    if self.DEBUG:
+                        print(f"释放密钥时发生错误: {str(e)}")
+                
                 if self.DEBUG:
                     print(f"提交任务失败，状态码: {response.status_code}")
                 if self.DEBUG:
@@ -585,10 +644,41 @@ class SoraImageGenerator:
                 if self.DEBUG:
                     print(f"响应内容: {response.text}")
                 
+                # 特殊处理429错误（太多并发任务）
+                if response.status_code == 429:
+                    response_text = response.text.lower()
+                    is_concurrent_issue = (
+                        "concurrent" in response_text or 
+                        "too many" in response_text or 
+                        "wait" in response_text or
+                        "progress" in response_text
+                    )
+                    
+                    if is_concurrent_issue:
+                        if self.DEBUG:
+                            print(f"检测到并发限制错误，当前密钥正在处理其他任务，获取新密钥但不禁用当前密钥")
+                        try:
+                            from .key_manager import key_manager
+                            # 不标记为无效，但获取一个新的可用密钥
+                            new_key = key_manager.get_key()
+                            if new_key:
+                                self.auth_token = new_key
+                                if self.DEBUG:
+                                    print(f"已获取新的API密钥，重试请求")
+                                # 使用新密钥重试请求
+                                return self._submit_task(payload, referer)
+                            else:
+                                if self.DEBUG:
+                                    print(f"没有可用的备用密钥")
+                        except (ImportError, Exception) as e:
+                            if self.DEBUG:
+                                print(f"获取新密钥时发生错误: {str(e)}")
+                        return None
+                
                 # 检查是否是认证失败（401/403）或其他可能表明API密钥失效的情况
                 response_text = response.text.lower()
                 is_auth_issue = (
-                    response.status_code in [401, 403, 429] or
+                    response.status_code in [401, 403] or
                     "authorization" in response_text or
                     "auth" in response_text or
                     "token" in response_text or
@@ -597,6 +687,12 @@ class SoraImageGenerator:
                     "credentials" in response_text or
                     "login" in response_text or
                     "invalid" in response_text
+                ) and not (
+                    # 排除并发限制导致的错误
+                    "concurrent" in response_text or 
+                    "too many" in response_text or 
+                    "wait" in response_text or
+                    "progress" in response_text
                 )
                 
                 if is_auth_issue:
@@ -623,6 +719,16 @@ class SoraImageGenerator:
                             
                 return None
         except Exception as e:
+            # 确保释放密钥
+            try:
+                from .key_manager import key_manager
+                key_manager.release_key(current_auth_token)
+                if self.DEBUG:
+                    print(f"发生异常，已释放密钥")
+            except (ImportError, Exception) as release_err:
+                if self.DEBUG:
+                    print(f"释放密钥时发生错误: {str(release_err)}")
+                
             if self.DEBUG:
                 print(f"提交任务时出错: {str(e)}")
             
@@ -656,172 +762,233 @@ class SoraImageGenerator:
                         print(f"切换API密钥失败: {str(err)}")
             
             return None
-    
+            
     def _poll_task_status(self, task_id, max_attempts=40, interval=5):
         """
         轮询检查任务状态，直到完成，返回所有生成的图片URL列表
         """
+        # 保存当前使用的密钥，确保最后可以正确释放
+        current_auth_token = self.auth_token
+        
         if self.DEBUG:
             print(f"开始轮询任务 {task_id} 的状态...")
-        for attempt in range(max_attempts):
-            try:
-                headers = self._get_dynamic_headers(referer="https://sora.chatgpt.com/library") # Polling often happens from library view
-                query_url = f"{self.check_url}?limit=10" # 获取最近的任务，减少数据量
-                response = self.scraper.get(
-                    query_url,
-                    headers=headers,
-                    proxies=self.proxies,
-                    timeout=15
-                )
-                if response.status_code == 200:
-                    try:
-                        result = response.json()
-                        task_responses = result.get("task_responses", [])
-                        # 查找对应的任务
-                        for task in task_responses:
-                            if task.get("id") == task_id:
-                                status = task.get("status")
-                                if self.DEBUG:
-                                    print(f"  任务 {task_id} 状态: {status} (尝试 {attempt+1}/{max_attempts})")
-                                if status == "succeeded":
-                                    generations = task.get("generations", [])
-                                    image_urls = []
-                                    if generations:
-                                        for gen in generations:
-                                            url = gen.get("url")
-                                            if url:
-                                                image_urls.append(url)
-                                    if image_urls:
-                                        if self.DEBUG:
-                                            print(f"任务 {task_id} 成功完成！找到 {len(image_urls)} 张图片。")
-                                        return image_urls
-                                    else:
-                                        if self.DEBUG:
-                                            print(f"任务 {task_id} 状态为 succeeded，但在响应中未找到有效的图片URL。")
-                                        if self.DEBUG:
-                                            print(f"任务详情: {json.dumps(task, indent=2)}")
-                                        return "任务成功但未找到图片URL"
-                                elif status == "failed":
-                                    failure_reason = task.get("failure_reason", "未知原因")
+        try:
+            for attempt in range(max_attempts):
+                try:
+                    headers = self._get_dynamic_headers(referer="https://sora.chatgpt.com/library") # Polling often happens from library view
+                    query_url = f"{self.check_url}?limit=10" # 获取最近的任务，减少数据量
+                    response = self.scraper.get(
+                        query_url,
+                        headers=headers,
+                        proxies=self.proxies,
+                        timeout=15
+                    )
+                    if response.status_code == 200:
+                        try:
+                            result = response.json()
+                            task_responses = result.get("task_responses", [])
+                            # 查找对应的任务
+                            for task in task_responses:
+                                if task.get("id") == task_id:
+                                    status = task.get("status")
                                     if self.DEBUG:
-                                        print(f"任务 {task_id} 失败: {failure_reason}")
-                                    # 检查是否是因为API密钥问题导致的失败
-                                    failure_reason_lower = failure_reason.lower()
-                                    auth_keywords = [
-                                        "authorization", "auth", "token", "permission", 
-                                        "unauthorized", "credentials", "login", "invalid"
-                                    ]
-                                    is_auth_issue = any(keyword in failure_reason_lower for keyword in auth_keywords)
-                                    
-                                    if is_auth_issue:
-                                        if self.DEBUG:
-                                            print(f"检测到API密钥可能失效，尝试切换密钥")
+                                        print(f"  任务 {task_id} 状态: {status} (尝试 {attempt+1}/{max_attempts})")
+                                    if status == "succeeded":
+                                        # 任务成功完成，释放密钥
                                         try:
-                                            # 导入在这里进行以避免循环导入
                                             from .key_manager import key_manager
-                                            # 标记当前密钥为无效并获取新密钥
-                                            new_key = key_manager.mark_key_invalid(self.auth_token)
-                                            if new_key:
-                                                self.auth_token = new_key
+                                            key_manager.release_key(current_auth_token)
+                                            if self.DEBUG:
+                                                print(f"任务成功完成，已释放密钥")
+                                        except (ImportError, Exception) as e:
+                                            if self.DEBUG:
+                                                print(f"释放密钥时发生错误: {str(e)}")
+                                                
+                                        generations = task.get("generations", [])
+                                        image_urls = []
+                                        if generations:
+                                            for gen in generations:
+                                                url = gen.get("url")
+                                                if url:
+                                                    image_urls.append(url)
+                                        if image_urls:
+                                            if self.DEBUG:
+                                                print(f"任务 {task_id} 成功完成！找到 {len(image_urls)} 张图片。")
+                                            return image_urls
+                                        else:
+                                            if self.DEBUG:
+                                                print(f"任务 {task_id} 状态为 succeeded，但在响应中未找到有效的图片URL。")
+                                            if self.DEBUG:
+                                                print(f"任务详情: {json.dumps(task, indent=2)}")
+                                            return "任务成功但未找到图片URL"
+                                    elif status == "failed":
+                                        # 任务失败，释放密钥
+                                        try:
+                                            from .key_manager import key_manager
+                                            key_manager.release_key(current_auth_token)
+                                            if self.DEBUG:
+                                                print(f"任务失败，已释放密钥")
+                                        except (ImportError, Exception) as e:
+                                            if self.DEBUG:
+                                                print(f"释放密钥时发生错误: {str(e)}")
+                                                
+                                        failure_reason = task.get("failure_reason", "未知原因")
+                                        if self.DEBUG:
+                                            print(f"任务 {task_id} 失败: {failure_reason}")
+                                        # 检查是否是因为API密钥问题导致的失败
+                                        failure_reason_lower = failure_reason.lower()
+                                        auth_keywords = [
+                                            "authorization", "auth", "token", "permission", 
+                                            "unauthorized", "credentials", "login", "invalid"
+                                        ]
+                                        is_auth_issue = any(keyword in failure_reason_lower for keyword in auth_keywords)
+                                        
+                                        if is_auth_issue:
+                                            if self.DEBUG:
+                                                print(f"检测到API密钥可能失效，尝试切换密钥")
+                                            try:
+                                                # 导入在这里进行以避免循环导入
+                                                from .key_manager import key_manager
+                                                # 标记当前密钥为无效并获取新密钥
+                                                new_key = key_manager.mark_key_invalid(self.auth_token)
+                                                if new_key:
+                                                    self.auth_token = new_key
+                                                    if self.DEBUG:
+                                                        print(f"已切换到新的API密钥")
+                                            except ImportError:
                                                 if self.DEBUG:
-                                                    print(f"已切换到新的API密钥")
-                                        except ImportError:
+                                                    print(f"无法导入key_manager，无法自动切换密钥")
+                                            except Exception as e:
+                                                if self.DEBUG:
+                                                    print(f"切换API密钥时发生错误: {str(e)}")
+                                            return f"任务失败: {failure_reason}"
+                                    elif status in ["rejected", "needs_user_review"]:
+                                        # 任务被拒绝，释放密钥
+                                        try:
+                                            from .key_manager import key_manager
+                                            key_manager.release_key(current_auth_token)
                                             if self.DEBUG:
-                                                print(f"无法导入key_manager，无法自动切换密钥")
-                                        except Exception as e:
+                                                print(f"任务被拒绝，已释放密钥")
+                                        except (ImportError, Exception) as e:
                                             if self.DEBUG:
-                                                print(f"切换API密钥时发生错误: {str(e)}")
-                                    return f"任务失败: {failure_reason}"
-                                elif status in ["rejected", "needs_user_review"]:
-                                     if self.DEBUG:
-                                         print(f"任务 {task_id} 被拒绝或需要审查: {status}")
-                                     return f"任务被拒绝或需审查: {status}"
-                                # else status is pending, processing, etc. - continue polling
-                                break # Found the task, no need to check others in this response
-                        else:
-                            # Task ID not found in the recent list, maybe it's older or just submitted
+                                                print(f"释放密钥时发生错误: {str(e)}")
+                                                
+                                        if self.DEBUG:
+                                            print(f"任务 {task_id} 被拒绝或需要审查: {status}")
+                                        return f"任务被拒绝或需审查: {status}"
+                                    # else status is pending, processing, etc. - continue polling
+                                    break # Found the task, no need to check others in this response
+                            else:
+                                # Task ID not found in the recent list, maybe it's older or just submitted
+                                if self.DEBUG:
+                                    print(f"  未在最近任务列表中找到 {task_id}，继续等待... (尝试 {attempt+1}/{max_attempts})")
+                        except json.JSONDecodeError:
                             if self.DEBUG:
-                                print(f"  未在最近任务列表中找到 {task_id}，继续等待... (尝试 {attempt+1}/{max_attempts})")
-                    except json.JSONDecodeError:
+                                print(f"检查任务状态时无法解析响应JSON。状态码: {response.status_code}, 响应: {response.text}")
+                    else:
                         if self.DEBUG:
-                            print(f"检查任务状态时无法解析响应JSON。状态码: {response.status_code}, 响应: {response.text}")
-                else:
+                            print(f"检查任务状态失败，状态码: {response.status_code}, 响应: {response.text}")
+                        
+                        # 检查是否是认证失败或其他可能表明API密钥失效的情况
+                        response_text = response.text.lower()
+                        is_auth_issue = (
+                            response.status_code in [401, 403, 429] or
+                            "authorization" in response_text or
+                            "auth" in response_text or
+                            "token" in response_text or
+                            "permission" in response_text or
+                            "unauthorized" in response_text or
+                            "credentials" in response_text or
+                            "login" in response_text or
+                            "invalid" in response_text
+                        )
+                        
+                        if is_auth_issue:
+                            if self.DEBUG:
+                                print(f"API密钥可能已失效，尝试切换密钥")
+                            
+                            try:
+                                # 导入在这里进行以避免循环导入
+                                from .key_manager import key_manager
+                                # 标记当前密钥为无效并获取新密钥
+                                new_key = key_manager.mark_key_invalid(self.auth_token)
+                                if new_key:
+                                    self.auth_token = new_key
+                                    if self.DEBUG:
+                                        print(f"已切换到新的API密钥，重试请求")
+                                    # 使用新密钥继续轮询
+                                    continue
+                            except ImportError:
+                                if self.DEBUG:
+                                    print(f"无法导入key_manager，无法自动切换密钥")
+                            except Exception as e:
+                                if self.DEBUG:
+                                    print(f"切换API密钥时发生错误: {str(e)}")
+                                    
+                    time.sleep(interval)  # 等待一段时间后再次检查
+                except Exception as e:
                     if self.DEBUG:
-                        print(f"检查任务状态失败，状态码: {response.status_code}, 响应: {response.text}")
+                        print(f"检查任务状态时出错: {str(e)}")
                     
-                    # 检查是否是认证失败或其他可能表明API密钥失效的情况
-                    response_text = response.text.lower()
+                    # 检查异常信息中是否包含可能的认证问题
+                    error_str = str(e).lower()
                     is_auth_issue = (
-                        response.status_code in [401, 403, 429] or
-                        "authorization" in response_text or
-                        "auth" in response_text or
-                        "token" in response_text or
-                        "permission" in response_text or
-                        "unauthorized" in response_text or
-                        "credentials" in response_text or
-                        "login" in response_text or
-                        "invalid" in response_text
+                        "authorization" in error_str or
+                        "auth" in error_str or
+                        "token" in error_str or
+                        "permission" in error_str or
+                        "unauthorized" in error_str or
+                        "credentials" in error_str or
+                        "login" in error_str
                     )
                     
                     if is_auth_issue:
                         if self.DEBUG:
-                            print(f"API密钥可能已失效，尝试切换密钥")
+                            print(f"异常信息表明可能存在API密钥问题，尝试切换密钥")
                         
                         try:
-                            # 导入在这里进行以避免循环导入
                             from .key_manager import key_manager
-                            # 标记当前密钥为无效并获取新密钥
                             new_key = key_manager.mark_key_invalid(self.auth_token)
                             if new_key:
                                 self.auth_token = new_key
                                 if self.DEBUG:
                                     print(f"已切换到新的API密钥，重试请求")
-                                # 使用新密钥继续轮询
+                                # 重置当前尝试次数，继续轮询
                                 continue
-                        except ImportError:
+                        except (ImportError, Exception) as err:
                             if self.DEBUG:
-                                print(f"无法导入key_manager，无法自动切换密钥")
-                        except Exception as e:
-                            if self.DEBUG:
-                                print(f"切换API密钥时发生错误: {str(e)}")
-                                
-                time.sleep(interval)  # 等待一段时间后再次检查
-            except Exception as e:
-                if self.DEBUG:
-                    print(f"检查任务状态时出错: {str(e)}")
-                
-                # 检查异常信息中是否包含可能的认证问题
-                error_str = str(e).lower()
-                is_auth_issue = (
-                    "authorization" in error_str or
-                    "auth" in error_str or
-                    "token" in error_str or
-                    "permission" in error_str or
-                    "unauthorized" in error_str or
-                    "credentials" in error_str or
-                    "login" in error_str
-                )
-                
-                if is_auth_issue:
-                    if self.DEBUG:
-                        print(f"异常信息表明可能存在API密钥问题，尝试切换密钥")
+                                print(f"切换API密钥失败: {str(err)}")
                     
-                    try:
-                        from .key_manager import key_manager
-                        new_key = key_manager.mark_key_invalid(self.auth_token)
-                        if new_key:
-                            self.auth_token = new_key
-                            if self.DEBUG:
-                                print(f"已切换到新的API密钥，重试请求")
-                            # 重置当前尝试次数，继续轮询
-                            continue
-                    except (ImportError, Exception) as err:
-                        if self.DEBUG:
-                            print(f"切换API密钥失败: {str(err)}")
+                    # Add a slightly longer delay on error to avoid hammering the server
+                    time.sleep(interval * 1.5)
+            
+            # 如果达到最大尝试次数，释放密钥
+            try:
+                from .key_manager import key_manager
+                key_manager.release_key(current_auth_token)
+                if self.DEBUG:
+                    print(f"轮询超时，已释放密钥")
+            except (ImportError, Exception) as e:
+                if self.DEBUG:
+                    print(f"释放密钥时发生错误: {str(e)}")
+                    
+            return f"任务 {task_id} 超时 ({max_attempts * interval}秒)，未能获取最终状态"
+        except Exception as e:
+            # 确保在异常情况下也释放密钥
+            try:
+                from .key_manager import key_manager
+                key_manager.release_key(current_auth_token)
+                if self.DEBUG:
+                    print(f"轮询过程发生异常，已释放密钥")
+            except (ImportError, Exception) as release_err:
+                if self.DEBUG:
+                    print(f"释放密钥时发生错误: {str(release_err)}")
                 
-                # Add a slightly longer delay on error to avoid hammering the server
-                time.sleep(interval * 1.5)
-        return f"任务 {task_id} 超时 ({max_attempts * interval}秒)，未能获取最终状态"
+            if self.DEBUG:
+                print(f"轮询任务状态时发生未处理的异常: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return f"轮询任务状态时出错: {str(e)}"
 
     def test_connection(self):
         """

@@ -13,8 +13,8 @@ if sys.platform.startswith('win'):
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
 
-API_URL = "http://localhost:8000/v1/chat/completions"
-API_KEY = "your-api-key"  # 替换为实际的API key
+API_URL = "http://127.0.0.1:8890/v1/chat/completions"
+API_KEY = "sk-123456"  # 替换为实际的API key
 
 def test_text_to_image(prompt="生成一只可爱的猫咪", stream=False):
     """测试文本到图像生成"""

@@ -113,6 +113,17 @@ async def shutdown_event():
         await session_pool.close()
     logger.info("应用已关闭，清理了全局会话池")
 
+# 添加根路径路由
+@app.get("/")
+async def root():
+    """根路径，返回系统状态信息"""
+    return {
+        "status": "OK",
+        "message": "系统运行正常",
+        "version": app.version,
+        "name": app.title
+    }
+
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory=Config.STATIC_DIR), name="static")
 
