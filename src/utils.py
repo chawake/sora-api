@@ -50,10 +50,30 @@ async def download_and_save_image(image_url: str) -> str:
         if IMAGE_DEBUG:
             logger.debug(f"下载图片: {image_url} -> {save_path}")
         
+        # 配置代理
+        proxy = None
+        if Config.PROXY_HOST and Config.PROXY_PORT:
+            proxy_auth = None
+            if Config.PROXY_USER and Config.PROXY_PASS:
+                proxy_auth = aiohttp.BasicAuth(Config.PROXY_USER, Config.PROXY_PASS)
+            
+            proxy_url = f"http://{Config.PROXY_HOST}:{Config.PROXY_PORT}"
+            if IMAGE_DEBUG:
+                auth_info = f" (使用认证)" if proxy_auth else ""
+                logger.debug(f"使用代理: {proxy_url}{auth_info}")
+            proxy = proxy_url
+        
         # 下载图片
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(image_url, timeout=30) as response:
+            # 创建请求参数
+            request_kwargs = {"timeout": 30}
+            if proxy:
+                request_kwargs["proxy"] = proxy
+                if Config.PROXY_USER and Config.PROXY_PASS:
+                    request_kwargs["proxy_auth"] = aiohttp.BasicAuth(Config.PROXY_USER, Config.PROXY_PASS)
+            
+            async with session.get(image_url, **request_kwargs) as response:
                 if response.status != 200:
                     logger.warning(f"下载失败，状态码: {response.status}, URL: {image_url}")
                     return image_url
