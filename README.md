@@ -324,6 +324,146 @@ curl -X GET http://localhost:8890/v1/generation/chatcmpl-123456789abcdef \
    - 检查端口是否被占用
    - 确认环境变量设置正确
    - 查看Docker日志中的错误信息
+   
+5. **环境变量API_AUTH_TOKEN和ADMIN_KEY的区别**
+   - 环境变量 API_AUTH_TOKEN代表你在cheery studio 或者newapi里调用填写的令牌
+   - 环境变量 ADMIN_KEY 代表你管理面板的登录密码
+   - 当不设置API_AUTH_TOKE时 其值默认等于ADMIN_KEY的值
+   
+6. **环境变量BASE_URL的作用**
+   - 这个是图片本地化时设置的，比如生成了一张图片，获取到图片原始url，由于有的客户端不能访问sora，所以要本地化，这个base_url就是指定本地化图片的url前缀。
+   
+6. **token无效**
+   - 首次使用的token需要设置用户名，可以使用下面的脚本批量设置用户名：
+ ```python
+import random
+import string
+import logging
+import cloudscraper
+
+# Configure logging
+tlogging = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# --- Configuration ---
+PROXY = {
+    "http": "http://127.0.0.1:7890",
+    "https": "http://127.0.0.1:7890"
+}
+PROFILE_API = "https://sora.chatgpt.com/backend/me"
+TOKENS_FILE = "tokens.txt"  # 每行一个 Bearer token
+RESULTS_FILE = "update_results.txt"  # 保存更新结果
+USERNAME_LENGTH = 8  # 随机用户名长度
+
+# --- Utilities ---
+def random_username(length: int = USERNAME_LENGTH) -> str:
+    """生成全小写随机用户名"""
+    return ''.join(random.choices(string.ascii_lowercase, k=length))
+
+
+def sanitize_headers(headers: dict) -> dict:
+    """
+    移除所有非 Latin-1 字符，确保 headers 可以被底层 HTTP 库正确编码。
+    """
+    new = {}
+    for k, v in headers.items():
+        if isinstance(v, str):
+            new[k] = v.encode('latin-1', 'ignore').decode('latin-1')
+        else:
+            new[k] = v
+    return new
+
+
+class SoraBatchUpdater:
+    def __init__(self, proxy: dict = None):
+        self.proxy = proxy or {}
+
+    def update_username_for_token(self, token: str) -> tuple[bool, str]:
+        """
+        针对单个 Bearer token，生成随机用户名并发送更新请求。
+        返回 (success, message)。
+        """
+        scraper = cloudscraper.create_scraper()
+        if self.proxy:
+            scraper.proxies = self.proxy
+
+        headers = {
+            "Accept": "*/*",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+        }
+        headers = sanitize_headers(headers)
+
+        new_username = random_username()
+        payload = {"username": new_username}
+
+        try:
+            resp = scraper.post(
+                PROFILE_API,
+                headers=headers,
+                json=payload,
+                allow_redirects=False,
+                timeout=15
+            )
+            status = resp.status_code
+            if resp.ok:
+                msg = f"OK ({new_username})"
+                logging.info("Token %s: updated to %s", token[:6], new_username)
+                return True, msg
+            else:
+                text = resp.text.replace('\n', '')
+                msg = f"Failed {status}: {text}"  # 简要错误信息
+                logging.warning("Token %s: %s", token[:6], msg)
+                return False, msg
+        except Exception as e:
+            msg = str(e)
+            logging.error("Token %s exception: %s", token[:6], msg)
+            return False, msg
+
+    def batch_update(self, tokens: list[str]) -> None:
+        """
+        对一组 Bearer token 批量更新用户名，并将结果写入 RESULTS_FILE。
+        """
+        results = []
+        for token in tokens:
+            success, message = self.update_username_for_token(token)
+            results.append((token, success, message))
+
+        # 写入结果文件
+        with open(RESULTS_FILE, 'w', encoding='utf-8') as f:
+            for token, success, msg in results:
+                status = 'SUCCESS' if success else 'ERROR'
+                f.write(f"{token} ---- {status} ---- {msg}\n")
+        logging.info("Batch update complete. Results saved to %s", RESULTS_FILE)
+
+
+def load_tokens(filepath: str) -> list[str]:
+    """从文件加载每行一个 token 的列表"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        logging.error("Tokens file not found: %s", filepath)
+        return []
+
+
+if __name__ == '__main__':
+    tokens = load_tokens(TOKENS_FILE)
+    if not tokens:
+        logging.error("No tokens to update. Exiting.")
+    else:
+        updater = SoraBatchUpdater(proxy=PROXY)
+        updater.batch_update(tokens)
+
+```
+
 
 ## 性能优化
 
