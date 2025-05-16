@@ -24,6 +24,10 @@
 
 ## 快速部署指南
 
+
+你可以直接运行不指定任何环境变量，所有环境变量都可以在面板里面配置
+
+
 ### 方法一：直接运行
 
 1. 克隆仓库
@@ -48,7 +52,7 @@
    - **方式2**: 设置环境变量
      ```bash
      # Linux/macOS
-     export API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]'
+     export API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]'  
      
      # Windows (PowerShell)
      $env:API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]'
@@ -206,7 +210,7 @@
 |---------|------|--------|------|
 | `API_HOST` | API服务监听地址 | `0.0.0.0` | `127.0.0.1` |
 | `API_PORT` | API服务端口 | `8890` | `9000` |
-| `BASE_URL` | API基础URL | `http://0.0.0.0:8890` | `https://api.example.com` |
+| `BASE_URL` | API基础URL（生成图片的时候需要用到） | `http://0.0.0.0:8890` | `https://api.example.com` |  
 | `PROXY_HOST` | HTTP代理主机 | 空（不使用代理） | `127.0.0.1` |
 | `PROXY_PORT` | HTTP代理端口 | 空（不使用代理） | `7890` |
 | `PROXY_USER` | HTTP代理用户名 | 空（不使用认证） | `username` |
