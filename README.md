@@ -194,6 +194,14 @@ docker 一键运行
      sora-api
    ```
 
+   **挂载本地目录保存图片**:
+   ```bash
+   docker run -d -p 8890:8890 \
+     -v /your/local/path:/app/src/static/images \
+     --name sora-api \
+     sora-api
+   ```
+
    **启用详细日志**:
    ```bash
    docker run -d -p 8890:8890 \
