@@ -55,29 +55,47 @@ async def download_and_save_image(image_url: str) -> str:
         return image_url
     
     # 检查是否已经是本地URL
-    # 1. 检查常规的静态文件URL模式
-    if image_url.startswith("/static/") or "/static/" in image_url:
+    # 准备URL检测所需的信息
+    parsed_base_url = urlparse(Config.BASE_URL)
+    base_path = parsed_base_url.path.rstrip('/')
+    
+    # 1. 检查是否匹配配置的图片URL路径
+    image_url_path = Config.IMAGE_URL_PATH
+    if not image_url_path.startswith('/'):
+        image_url_path = f"/{image_url_path}"
+    
+    # 检查URL是否以图片URL路径开头或包含该路径
+    if (image_url.startswith(image_url_path) or 
+        image_url.startswith(f"{base_path}{image_url_path}") or
+        image_url_path in image_url):
+        
         if IMAGE_DEBUG:
-            logger.debug(f"URL已是本地静态路径: {image_url}")
+            logger.debug(f"URL已是本地图片路径: {image_url}")
         
         # 如果是相对路径，补充完整的URL
-        if image_url.startswith("/static/"):
-            return f"{Config.BASE_URL}{image_url}"
+        if image_url.startswith("/"):
+            return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
         return image_url
     
-    # 2. 检查其他可能的URL格式，包括自定义前缀路径 /prefix/images/
+    # 2. 兼容性检查 - 检查旧格式路径
+    if image_url.startswith("/static/") or "/static/" in image_url:
+        if IMAGE_DEBUG:
+            logger.debug(f"URL已是旧格式本地静态路径: {image_url}")
+        
+        if image_url.startswith("/"):
+            return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
+        return image_url
+    
+    # 3. 兼容性检查 - 检查带有自定义前缀的路径
     static_path_prefix = Config.STATIC_PATH_PREFIX
     if static_path_prefix:
-        # 确保前缀以/开头
         if not static_path_prefix.startswith('/'):
             static_path_prefix = f"/{static_path_prefix}"
             
-        if image_url.startswith(f"{static_path_prefix}/images/"):
+        if image_url.startswith(f"{static_path_prefix}/images/") or f"{static_path_prefix}/images/" in image_url:
             if IMAGE_DEBUG:
                 logger.debug(f"URL已是自定义前缀路径: {image_url}")
             
-            # 如果是相对路径，补充完整的URL
-            parsed_base_url = urlparse(Config.BASE_URL)
             if image_url.startswith("/"):
                 return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
             return image_url
@@ -143,32 +161,32 @@ async def download_and_save_image(image_url: str) -> str:
         # 获取文件名
         filename = os.path.basename(save_path)
         
-        # 处理基础URL可能包含子路径的情况
+        # 解析基础URL
         parsed_base_url = urlparse(Config.BASE_URL)
         base_path = parsed_base_url.path.rstrip('/')
         
-        # 检查是否有静态文件路径前缀配置
-        static_path_prefix = Config.STATIC_PATH_PREFIX
-        
-        if static_path_prefix:
-            # 使用配置的路径前缀生成URL
-            # 确保路径前缀以/开头
-            if not static_path_prefix.startswith('/'):
-                static_path_prefix = f"/{static_path_prefix}"
-                
-            # 生成相对URL路径
-            relative_url = f"{static_path_prefix}/images/{filename}"
-        else:
-            # 使用标准静态资源路径
-            relative_url = f"/static/images/{filename}"
+        # 直接使用配置的图片URL路径，确保开头有斜杠
+        image_url_path = Config.IMAGE_URL_PATH
+        if not image_url_path.startswith('/'):
+            image_url_path = f"/{image_url_path}"
             
-        # 如果基础路径不为空，添加到相对URL前
+        # 生成图片的相对URL路径
+        relative_url = f"{image_url_path}/{filename}"
+        
+        # 如果基础URL有子路径，添加到相对URL路径前
         if base_path:
             relative_url = f"{base_path}{relative_url}"
             
-        # 统一处理重复斜杠问题
-        relative_url = relative_url.replace("//", "/")
+        # 处理路径中可能的重复斜杠
+        while "//" in relative_url:
+            relative_url = relative_url.replace("//", "/")
+            
+        # 生成完整URL
         full_url = f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{relative_url}"
+        
+        if IMAGE_DEBUG:
+            logger.debug(f"生成图片URL: {full_url}")
+            logger.debug(f"图片保存位置: {save_path}")
         
         if IMAGE_DEBUG:
             logger.debug(f"图片保存成功: {full_url}")

@@ -103,6 +103,11 @@ async def startup_event():
     else:
         logger.info(f"未设置静态文件路径前缀，使用标准路径: /static/images/filename.png")
     
+    # 添加图片URL访问路径信息
+    logger.info(f"图片URL访问路径: {Config.IMAGE_URL_PATH}")
+    logger.info(f"图片子路径: {Config.IMAGE_SUB_PATH}")
+    logger.info(f"访问示例: {Config.BASE_URL}{Config.IMAGE_URL_PATH}/filename.png")
+    
     # 打印配置信息
     Config.print_config()
 
@@ -134,17 +139,25 @@ if Config.STATIC_PATH_PREFIX:
             logger.warning(f"请求的图片不存在: {file_path}")
             raise HTTPException(status_code=404, detail="图片不存在")
 
-# 添加一个标准的图片处理路由，确保无论路径前缀如何都能访问图片
-@app.get("/static/images/{filename}")
-async def get_static_image(filename: str):
-    """处理标准路径的图片请求"""
-    # 构建完整的文件路径
-    file_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    else:
-        logger.warning(f"请求的图片不存在: {file_path}")
-        raise HTTPException(status_code=404, detail="图片不存在")
+# 添加自定义图片访问路径的路由
+@app.get("{image_path}/{filename}")
+async def get_custom_image(image_path: str, filename: str):
+    """通用图片访问路由，支持任意配置的路径"""
+    # 检查请求的路径是否与配置的图片URL路径匹配
+    expected_path = Config.IMAGE_URL_PATH.rstrip("/")
+    requested_path = f"/{image_path}"
+    
+    if requested_path == expected_path or requested_path == f"{expected_path}/{Config.IMAGE_SUB_PATH}":
+        # 构建完整的文件路径
+        file_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        else:
+            logger.warning(f"请求的图片不存在: {file_path}")
+            raise HTTPException(status_code=404, detail="图片不存在")
+    
+    # 如果路径不匹配，继续让FastAPI处理下一个路由
+    raise HTTPException(status_code=404, detail="路径不匹配")
 
 # 管理界面路由
 @app.get("/admin")

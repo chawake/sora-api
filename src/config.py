@@ -28,7 +28,13 @@ class Config:
     ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     BASE_DIR = ROOT_DIR
     STATIC_DIR = os.getenv("STATIC_DIR", os.path.join(BASE_DIR, "src/static"))
+    
+    # 图片保存和访问配置
     IMAGE_SAVE_DIR = os.getenv("IMAGE_SAVE_DIR", os.path.join(STATIC_DIR, "images"))
+    # 图片URL访问路径（默认为/static/images）
+    IMAGE_URL_PATH = os.getenv("IMAGE_URL_PATH", "/static/images")
+    # 图片子路径（默认为images）
+    IMAGE_SUB_PATH = os.getenv("IMAGE_SUB_PATH", "images")
     
     # 图片本地化配置
     IMAGE_LOCALIZATION = os.getenv("IMAGE_LOCALIZATION", "False").lower() in ("true", "1", "yes")
