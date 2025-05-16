@@ -1392,6 +1392,29 @@ async function previewImport() {
         importPreviewData = [];
         
         for (const line of lines) {
+            // 检查是否是单行密钥格式（不包含逗号）
+            if (!line.includes(',')) {
+                const keyValue = line.trim();
+                
+                // 验证密钥格式
+                if (!keyValue.startsWith('sk-') && !keyValue.match(/^[a-zA-Z0-9_-]{20,}$/)) {
+                    continue; // 跳过不符合OpenAI API密钥格式的行
+                }
+                
+                // 为密钥自动生成名称（使用前6位）
+                const keyName = `密钥_${keyValue.substring(0, 6)}`;
+                
+                importPreviewData.push({
+                    name: keyName,
+                    key: keyValue,
+                    weight: 1,
+                    rate_limit: 60,
+                    enabled: document.getElementById('auto-enable-keys').checked
+                });
+                continue;
+            }
+            
+            // 处理标准格式（带逗号分隔）
             const parts = line.split(',').map(part => part.trim());
             
             if (parts.length < 2) {
