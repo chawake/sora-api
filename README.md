@@ -34,6 +34,12 @@
 api请求密钥不设置默认和管理员登录密钥相同
 
 
+docker 一键运行
+   ```bash
+   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:v0.1
+   ```
+
+
 
 ### 方法一：直接运行
 
@@ -513,4 +519,6 @@ if __name__ == "__main__":
 
 欢迎提交问题报告和改进建议！
 
+## 许可证
 
+MIT 
