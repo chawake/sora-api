@@ -1,0 +1,12 @@
+[
+  {
+    "key": "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9...",
+    "weight": 1,
+    "max_rpm": 60
+  },
+  {
+    "key": "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9...",
+    "weight": 2,
+    "max_rpm": 60
+  }
+] 

@@ -1,0 +1,53 @@
+# 确保文本文件在仓库中使用 LF
+* text=auto eol=lf
+# API密钥配置
+api_keys.json
+admin_config.json
+*.key
+
+# 环境变量和配置
+.env
+*.env
+config.local.json
+
+# 生成的图像文件
+src/static/images/*
+!src/static/images/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+
+# 日志文件
+*.log
+logs/
+
+# IDE配置
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.dockerignore 

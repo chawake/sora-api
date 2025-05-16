@@ -1,0 +1,112 @@
+import os
+import uuid
+import aiohttp
+import aiofiles
+import logging
+from urllib.parse import urlparse
+from .config import Config
+
+# 初始化日志
+logger = logging.getLogger("sora-api.utils")
+
+# 图片本地化调试开关
+IMAGE_DEBUG = os.getenv("IMAGE_DEBUG", "").lower() in ("true", "1", "yes")
+
+async def download_and_save_image(image_url: str) -> str:
+    """
+    下载图片并保存到本地
+    
+    Args:
+        image_url: 图片URL
+        
+    Returns:
+        本地化后的图片URL
+    """
+    # 如果未启用本地化或URL已经是本地路径，直接返回
+    if not Config.IMAGE_LOCALIZATION:
+        if IMAGE_DEBUG:
+            logger.debug(f"图片本地化未启用，返回原始URL: {image_url}")
+        return image_url
+    
+    # 检查是否已经是本地URL
+    if image_url.startswith("/static/") or "/static/" in image_url:
+        if IMAGE_DEBUG:
+            logger.debug(f"URL已是本地路径")
+        
+        if image_url.startswith("/static/"):
+            return f"{Config.BASE_URL}{image_url}"
+        return image_url
+    
+    try:
+        # 生成文件名和保存路径
+        parsed_url = urlparse(image_url)
+        file_extension = os.path.splitext(parsed_url.path)[1] or ".png"
+        filename = f"{uuid.uuid4()}{file_extension}"
+        save_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
+        
+        # 确保保存目录存在
+        os.makedirs(Config.IMAGE_SAVE_DIR, exist_ok=True)
+        
+        if IMAGE_DEBUG:
+            logger.debug(f"下载图片: {image_url} -> {save_path}")
+        
+        # 下载图片
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(image_url, timeout=30) as response:
+                if response.status != 200:
+                    logger.warning(f"下载失败，状态码: {response.status}, URL: {image_url}")
+                    return image_url
+                
+                content = await response.read()
+                if not content:
+                    logger.warning("下载内容为空")
+                    return image_url
+                
+                # 保存图片
+                async with aiofiles.open(save_path, "wb") as f:
+                    await f.write(content)
+        
+        # 检查文件是否成功保存
+        if not os.path.exists(save_path) or os.path.getsize(save_path) == 0:
+            logger.warning(f"图片保存失败: {save_path}")
+            if os.path.exists(save_path):
+                os.remove(save_path)
+            return image_url
+        
+        # 返回本地URL
+        relative_url = f"/static/images/{filename}"
+        full_url = f"{Config.BASE_URL}{relative_url}"
+        
+        if IMAGE_DEBUG:
+            logger.debug(f"图片保存成功: {full_url}")
+        
+        return full_url
+    except Exception as e:
+        logger.error(f"图片下载失败: {str(e)}", exc_info=IMAGE_DEBUG)
+        return image_url
+
+async def localize_image_urls(image_urls: list) -> list:
+    """
+    批量将图片URL本地化
+    
+    Args:
+        image_urls: 图片URL列表
+        
+    Returns:
+        本地化后的URL列表
+    """
+    if not Config.IMAGE_LOCALIZATION or not image_urls:
+        return image_urls
+    
+    if IMAGE_DEBUG:
+        logger.debug(f"本地化 {len(image_urls)} 个URL: {image_urls}")
+    else:
+        logger.info(f"本地化 {len(image_urls)} 个图片")
+    
+    localized_urls = []
+    for url in image_urls:
+        localized_url = await download_and_save_image(url)
+        localized_urls.append(localized_url)
+    
+    return localized_urls 

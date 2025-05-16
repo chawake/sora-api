@@ -1,0 +1,424 @@
+/* 全局样式 */
+:root {
+    --sidebar-width: 250px;
+    --sidebar-bg: #343a40;
+    --sidebar-color: #fff;
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    --transition-speed: 0.3s;
+}
+
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', 'Arial', sans-serif;
+    background-color: #f8f9fa;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+/* 登录页面样式 */
+#login-container, .login-container {
+    background-color: #f8f9fa;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 1050;
+    align-items: center;
+    justify-content: center;
+}
+
+#login-container .card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    overflow: hidden;
+    width: 400px;
+    max-width: 90%;
+}
+
+#login-container .card-header {
+    background-color: var(--primary-color);
+    padding: 1.5rem 1rem;
+}
+
+#login-container .bi-shield-lock {
+    color: var(--primary-color);
+}
+
+#login-form .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    padding: 0.6rem 1.2rem;
+    font-weight: 500;
+}
+
+#login-form .btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+#login-error {
+    border-radius: 8px;
+}
+
+/* 页面布局 */
+.wrapper {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+    align-items: stretch;
+    position: relative;
+}
+
+/* 侧边栏样式 */
+#sidebar {
+    min-width: 250px;
+    max-width: 250px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-color);
+    transition: all var(--transition-speed);
+    height: 100vh;
+    position: fixed;
+    z-index: 999;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    top: 0;
+    left: 0;
+}
+
+#sidebar.active {
+    margin-left: -250px;
+}
+
+#sidebar .sidebar-header {
+    padding: 20px;
+    background: #212529;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#sidebar ul.components {
+    padding: 20px 0;
+    height: calc(100vh - 140px);
+    overflow-y: auto;
+}
+
+#sidebar ul li a {
+    padding: 12px 20px;
+    font-size: 1.1em;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+    transition: all 0.3s;
+    border-left: 3px solid transparent;
+}
+
+#sidebar ul li a:hover {
+    background: #495057;
+    border-left: 3px solid var(--primary-color);
+}
+
+#sidebar ul li.active > a {
+    background: var(--primary-color);
+    color: white;
+    border-left: 3px solid #fff;
+}
+
+#sidebar ul li.sidebar-footer {
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
+
+#sidebar ul li.sidebar-footer a {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+#sidebar ul li.sidebar-footer a:hover {
+    background: rgba(220, 53, 69, 0.6);
+    color: white;
+}
+
+/* 主内容区样式 */
+#content {
+    width: calc(100% - 250px);
+    padding: 0;
+    min-height: 100vh;
+    transition: all 0.3s;
+    position: absolute;
+    right: 0;
+    overflow-x: hidden;
+}
+
+#content.active {
+    width: 100%;
+}
+
+/* 内容页面样式 */
+.content-page {
+    display: none;
+    padding: 0 20px 30px;
+}
+
+.content-page.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+/* 表格样式 */
+.table th {
+    font-weight: 600;
+    border-top: none;
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* 状态标签样式 */
+.status-badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 85%;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    cursor: help;
+}
+
+.status-enabled {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-disabled {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.status-temp-disabled {
+    background-color: var(--warning-color);
+    color: black;
+    position: relative;
+}
+
+/* 为临时禁用状态的提示信息添加样式 */
+.small.text-muted {
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 3px;
+}
+
+/* 让状态标签支持鼠标悬停提示 */
+.status-badge:hover {
+    background-color: #ffd700;
+    color: black;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    #sidebar {
+        margin-left: -250px;
+    }
+    #sidebar.active {
+        margin-left: 0;
+    }
+    #content {
+        width: 100%;
+    }
+    #content.active {
+        width: calc(100% - 250px);
+    }
+    #sidebarCollapse {
+        display: block;
+    }
+    .navbar .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+/* 卡片样式美化 */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 15px 20px;
+    font-weight: 500;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* 按钮样式 */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+/* 表单元素样式 */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* 操作按钮样式 */
+.action-btn {
+    margin-right: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border-radius: 50%;
+}
+
+.action-btn i {
+    font-size: 0.9rem;
+}
+
+/* 密钥值样式 */
+.key-value {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* 统计卡片样式 */
+.card.bg-primary, .card.bg-success, .card.bg-danger, .card.bg-info {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.card.bg-primary:hover, .card.bg-success:hover, .card.bg-danger:hover, .card.bg-info:hover {
+    transform: translateY(-5px);
+}
+
+.card.bg-primary .card-title, .card.bg-success .card-title, 
+.card.bg-danger .card-title, .card.bg-info .card-title {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.card.bg-primary .card-text, .card.bg-success .card-text, 
+.card.bg-danger .card-text, .card.bg-info .card-text {
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+/* 图表容器 */
+canvas {
+    width: 100% !important;
+    height: 300px !important;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    background-color: #fff !important;
+}
+
+/* 管理员密钥显示 */
+#admin-key-display {
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+/* Toast通知样式 */
+.toast {
+    border-radius: 8px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 最近的API密钥列表样式 */
+#recent-keys-list .list-group-item {
+    padding: 0.75rem 1rem;
+    border-left: none;
+    border-right: none;
+}
+
+#recent-keys-list .list-group-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* 模态框样式 */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 分页样式 */
+.pagination {
+    margin-bottom: 0;
+}
+
+.page-link {
+    color: var(--primary-color);
+    border-radius: 4px;
+    margin: 0 2px;
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* 搜索框样式 */
+#search-keys {
+    min-width: 250px;
+    border-radius: 20px;
+    padding-left: 15px;
+    padding-right: 15px;
+} 
