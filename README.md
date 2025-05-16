@@ -36,7 +36,7 @@ api请求密钥不设置默认和管理员登录密钥相同
 
 docker 一键运行
    ```bash
-   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:v0.1
+   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:latest
    ```
 
 
@@ -71,7 +71,7 @@ docker 一键运行
      $env:API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]'
      
      # Windows (CMD)
-     set API_KEYS=[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]
+     set API_KEYS=[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]  
      ```
 
 4. 配置代理（可选，如果需要）
@@ -132,7 +132,7 @@ docker 一键运行
 
    **使用预打包镜像**:
    ```bash
-   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:v0.1
+   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:latest
    ```
 
    **使用预打包镜像并配置API密钥**:
