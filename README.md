@@ -28,7 +28,7 @@
 
 1. 克隆仓库
    ```bash
-   git clone https://github.com/yourusername/sora-api.git
+   git clone https://github.com/1hei1/sora-api.git      
    cd sora-api
    ```
 
