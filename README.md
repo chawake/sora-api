@@ -97,7 +97,7 @@
 
 6. 访问服务
    - API服务地址: http://localhost:8890
-   - 健康检查: http://localhost:8890/health
+   - 后台管理面板: http://localhost:8890/admin
 
 ### 方法二：Docker部署
 
