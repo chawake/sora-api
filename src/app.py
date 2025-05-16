@@ -90,7 +90,11 @@ async def startup_event():
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin"), exist_ok=True)
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin/js"), exist_ok=True)
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin/css"), exist_ok=True)
-    os.makedirs(os.path.join(Config.STATIC_DIR, "images"), exist_ok=True)
+    os.makedirs(Config.IMAGE_SAVE_DIR, exist_ok=True)
+    
+    # 输出图片保存目录的信息 
+    logger.info(f"图片保存目录: {Config.IMAGE_SAVE_DIR}")
+    logger.info(f"相对路径: {os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)}")
     
     # 打印配置信息
     Config.print_config()

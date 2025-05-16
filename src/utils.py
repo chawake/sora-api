@@ -57,8 +57,9 @@ async def download_and_save_image(image_url: str) -> str:
     # 检查是否已经是本地URL
     if image_url.startswith("/static/") or "/static/" in image_url:
         if IMAGE_DEBUG:
-            logger.debug(f"URL已是本地路径")
+            logger.debug(f"URL已是本地路径: {image_url}")
         
+        # 如果是相对路径，补充完整的URL
         if image_url.startswith("/static/"):
             return f"{Config.BASE_URL}{image_url}"
         return image_url
@@ -121,7 +122,9 @@ async def download_and_save_image(image_url: str) -> str:
             return image_url
         
         # 返回本地URL
-        relative_url = f"/static/images/{filename}"
+        # 获取图片保存目录相对于静态目录的路径
+        image_dir_relative = os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)
+        relative_url = f"/static/{image_dir_relative}/{filename}".replace("\\", "/")
         full_url = f"{Config.BASE_URL}{relative_url}"
         
         if IMAGE_DEBUG:
