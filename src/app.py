@@ -96,10 +96,11 @@ async def startup_event():
     logger.info(f"图片保存目录: {Config.IMAGE_SAVE_DIR}")
     
     # 图片访问URL
+    base_url = Config.BASE_URL.rstrip('/')
     if Config.STATIC_PATH_PREFIX:
-        logger.info(f"图片将通过 {Config.BASE_URL}{Config.STATIC_PATH_PREFIX}/images/<filename> 访问")
+        logger.info(f"图片将通过 {base_url}{Config.STATIC_PATH_PREFIX}/images/<filename> 访问")
     else:
-        logger.info(f"图片将通过 {Config.BASE_URL}/images/<filename> 访问")
+        logger.info(f"图片将通过 {base_url}/images/<filename> 访问")
     
     # 打印配置信息
     Config.print_config()

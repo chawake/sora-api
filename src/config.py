@@ -35,6 +35,9 @@ class Config:
     # 图片本地化配置
     IMAGE_LOCALIZATION = os.getenv("IMAGE_LOCALIZATION", "False").lower() in ("true", "1", "yes")
     
+    # 当外部访问地址与服务器地址不同时，可通过BASE_URL覆盖图片访问地址
+    # 例如：当服务器在内网，但通过反向代理从外网访问时
+    
     # API Keys配置
     API_KEYS = []
     
