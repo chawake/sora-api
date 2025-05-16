@@ -274,21 +274,80 @@ class KeyManager:
         Returns:
             是否成功删除
         """
-        for i, key in enumerate(self.keys):
-            if key.get("id") == key_id:
-                key_name = key.get("name") or key_id
-                self.keys.pop(i)
-                
-                # 同时删除统计数据
-                if key_id in self.usage_stats:
-                    del self.usage_stats[key_id]
-                    
-                self._save_keys()
-                logger.info(f"已删除密钥: {key_name}")
-                return True
-                
-        logger.warning(f"未找到要删除的密钥: {key_id}")
+        original_length = len(self.keys)
+        self.keys = [key for key in self.keys if key.get("id") != key_id]
+        
+        # 如果成功删除，保存密钥
+        if len(self.keys) < original_length:
+            self._save_keys()
+            return True
+            
         return False
+    
+    def batch_import_keys(self, keys_data: List[Dict[str, Any]]) -> Dict[str, int]:
+        """
+        批量导入密钥
+        
+        Args:
+            keys_data: 密钥数据列表，每个元素为包含密钥信息的字典
+            
+        Returns:
+            导入结果统计
+        """
+        imported_count = 0
+        skipped_count = 0
+        
+        # 获取现有密钥值
+        existing_keys = {key.get("key") for key in self.keys}
+        
+        for key_data in keys_data:
+            key_value = key_data.get("key")
+            if not key_value:
+                continue
+                
+            # 检查密钥是否已存在
+            if key_value in existing_keys:
+                skipped_count += 1
+                continue
+                
+            # 添加新密钥
+            key_id = str(uuid.uuid4())
+            new_key = {
+                "id": key_id,
+                "name": key_data.get("name", ""),
+                "key": key_value,
+                "weight": key_data.get("weight", 1),
+                "max_rpm": key_data.get("rate_limit", 60),
+                "requests": 0,
+                "last_reset": time.time(),
+                "available": key_data.get("enabled", True),
+                "is_enabled": key_data.get("enabled", True),
+                "created_at": time.time(),
+                "last_used": None,
+                "notes": key_data.get("notes")
+            }
+            self.keys.append(new_key)
+            existing_keys.add(key_value)  # 添加到已存在集合中
+            
+            # 初始化使用统计
+            self.usage_stats[key_id] = {
+                "total_requests": 0,
+                "successful_requests": 0,
+                "failed_requests": 0,
+                "daily_usage": {},
+                "average_response_time": 0
+            }
+            
+            imported_count += 1
+            
+        # 保存密钥
+        if imported_count > 0:
+            self._save_keys()
+            
+        return {
+            "imported": imported_count,
+            "skipped": skipped_count
+        }
     
     def get_key(self) -> Optional[str]:
         """获取下一个可用的密钥"""

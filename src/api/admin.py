@@ -198,34 +198,88 @@ async def batch_operation(operation: Dict[str, Any], admin_token = Depends(verif
     action = operation.get("action")
     key_ids = operation.get("key_ids", [])
     
-    if not action or not key_ids:
-        raise HTTPException(status_code=400, detail="无效的请求参数")
+    if not action or (not key_ids and action != "import"):
+        raise HTTPException(status_code=400, detail="缺少必要参数")
     
-    # 确保key_ids是一个列表
-    if isinstance(key_ids, str):
-        key_ids = [key_ids]
-    
-    results = {}
-    
-    if action == "enable":
-        for key_id in key_ids:
-            success = key_manager.update_key(key_id, is_enabled=True)
-            results[key_id] = "success" if success else "failed"
-    elif action == "disable":
-        for key_id in key_ids:
-            success = key_manager.update_key(key_id, is_enabled=False)
-            results[key_id] = "success" if success else "failed"
-    elif action == "delete":
-        for key_id in key_ids:
-            success = key_manager.delete_key(key_id)
-            results[key_id] = "success" if success else "failed"
-    else:
-        raise HTTPException(status_code=400, detail="不支持的操作类型")
-    
-    # 通过Config永久保存所有密钥
-    Config.save_api_keys(key_manager.keys)
-    
-    return {"status": "success", "results": results}
+    try:
+        if action == "import":
+            # 批量导入API密钥
+            keys_data = operation.get("keys", [])
+            if not keys_data:
+                raise HTTPException(status_code=400, detail="未提供密钥数据")
+            
+            # 对每个密钥处理Bearer前缀
+            for key_data in keys_data:
+                key_value = key_data.get("key", "").strip()
+                if key_value and not key_value.startswith("Bearer "):
+                    key_data["key"] = f"Bearer {key_value}"
+            
+            # 执行批量导入
+            result = key_manager.batch_import_keys(keys_data)
+            
+            # 通过Config永久保存所有密钥
+            Config.save_api_keys(key_manager.keys)
+            
+            return {
+                "success": True,
+                "message": f"成功导入 {result['imported']} 个密钥，跳过 {result['skipped']} 个重复密钥",
+                "imported": result["imported"],
+                "skipped": result["skipped"]
+            }
+        elif action == "enable":
+            # 批量启用
+            success_count = 0
+            for key_id in key_ids:
+                updated = key_manager.update_key(key_id, is_enabled=True)
+                if updated:
+                    success_count += 1
+            
+            # 通过Config永久保存所有密钥
+            Config.save_api_keys(key_manager.keys)
+            
+            return {
+                "success": True,
+                "message": f"已成功启用 {success_count} 个密钥",
+                "affected": success_count
+            }
+        elif action == "disable":
+            # 批量禁用
+            success_count = 0
+            for key_id in key_ids:
+                updated = key_manager.update_key(key_id, is_enabled=False)
+                if updated:
+                    success_count += 1
+            
+            # 通过Config永久保存所有密钥
+            Config.save_api_keys(key_manager.keys)
+            
+            return {
+                "success": True,
+                "message": f"已成功禁用 {success_count} 个密钥",
+                "affected": success_count
+            }
+        elif action == "delete":
+            # 批量删除
+            success_count = 0
+            for key_id in key_ids:
+                if key_manager.delete_key(key_id):
+                    success_count += 1
+            
+            # 通过Config永久保存所有密钥
+            Config.save_api_keys(key_manager.keys)
+            
+            return {
+                "success": True,
+                "message": f"已成功删除 {success_count} 个密钥",
+                "affected": success_count
+            }
+        else:
+            raise HTTPException(status_code=400, detail=f"不支持的操作: {action}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量操作失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 配置管理API
 @router.get("/config")

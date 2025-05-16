@@ -17,6 +17,8 @@ let systemSettings = {
 let tokenExpiry = null;
 // JWT配置
 const JWT_EXPIRATION = 3600; // 令牌有效期1小时（秒）
+// 导入预览数据
+let importPreviewData = [];
 
 // DOM 加载完成后执行
 document.addEventListener('DOMContentLoaded', () => {
@@ -192,6 +194,41 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await saveSettings();
+    });
+    
+    // 批量导入密钥按钮事件
+    document.getElementById('import-keys-btn').addEventListener('click', () => {
+        // 重置导入表单和预览
+        document.getElementById('keys-text').value = '';
+        document.getElementById('keys-file').value = '';
+        document.getElementById('auto-enable-keys').checked = true;
+        document.getElementById('import-preview').style.display = 'none';
+        document.getElementById('confirm-import-btn').disabled = true;
+        importPreviewData = [];
+        
+        // 显示导入模态框
+        const importModal = new bootstrap.Modal(document.getElementById('importKeysModal'));
+        importModal.show();
+    });
+    
+    // 预览导入按钮事件
+    document.getElementById('preview-import-btn').addEventListener('click', previewImport);
+    
+    // 确认导入按钮事件
+    document.getElementById('confirm-import-btn').addEventListener('click', confirmImport);
+    
+    // 文件选择事件
+    document.getElementById('keys-file').addEventListener('change', async (e) => {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                document.getElementById('keys-text').value = event.target.result;
+            };
+            
+            reader.readAsText(file);
+        }
     });
 });
 
@@ -1340,4 +1377,157 @@ function renderDashboardRequestsChart(dailyUsage) {
     });
 }
 
-// 不再需要单独的getAdminKey函数，apiRequest封装了token管理 
+// 批量导入密钥预览
+async function previewImport() {
+    const keysText = document.getElementById('keys-text').value.trim();
+    
+    if (!keysText) {
+        showToast('请输入或上传密钥数据', 'warning');
+        return;
+    }
+    
+    try {
+        // 解析密钥数据
+        const lines = keysText.split('\n').filter(line => line.trim());
+        importPreviewData = [];
+        
+        for (const line of lines) {
+            const parts = line.split(',').map(part => part.trim());
+            
+            if (parts.length < 2) {
+                continue; // 跳过格式不正确的行
+            }
+            
+            const keyName = parts[0];
+            const keyValue = parts[1];
+            const weight = parts.length > 2 ? parseInt(parts[2]) || 1 : 1;
+            const rateLimit = parts.length > 3 ? parseInt(parts[3]) || 60 : 60;
+            
+            // 验证密钥格式
+            if (!keyValue.startsWith('sk-') && !keyValue.match(/^[a-zA-Z0-9_-]{20,}$/)) {
+                continue; // 跳过不符合OpenAI API密钥格式的行
+            }
+            
+            importPreviewData.push({
+                name: keyName,
+                key: keyValue,
+                weight: weight,
+                rate_limit: rateLimit,
+                enabled: document.getElementById('auto-enable-keys').checked
+            });
+        }
+        
+        // 显示预览
+        if (importPreviewData.length > 0) {
+            renderImportPreview();
+            document.getElementById('preview-count').textContent = importPreviewData.length;
+            document.getElementById('import-preview').style.display = 'block';
+            document.getElementById('confirm-import-btn').disabled = false;
+        } else {
+            showToast('未找到有效的密钥数据', 'warning');
+            document.getElementById('import-preview').style.display = 'none';
+            document.getElementById('confirm-import-btn').disabled = true;
+        }
+    } catch (error) {
+        console.error('预览导入失败:', error);
+        showToast('预览失败: ' + error.message, 'danger');
+    }
+}
+
+// 渲染导入预览表格
+function renderImportPreview() {
+    const tableBody = document.getElementById('preview-table-body');
+    tableBody.innerHTML = '';
+    
+    // 限制预览最多显示10行
+    const displayData = importPreviewData.slice(0, 10);
+    
+    displayData.forEach(key => {
+        const row = document.createElement('tr');
+        
+        // 名称
+        const nameCell = document.createElement('td');
+        nameCell.textContent = key.name;
+        row.appendChild(nameCell);
+        
+        // 密钥(部分隐藏)
+        const keyCell = document.createElement('td');
+        const maskedKey = key.key.substring(0, 5) + '...' + key.key.substring(key.key.length - 4);
+        keyCell.textContent = maskedKey;
+        row.appendChild(keyCell);
+        
+        // 权重
+        const weightCell = document.createElement('td');
+        weightCell.textContent = key.weight;
+        row.appendChild(weightCell);
+        
+        // 速率限制
+        const rateLimitCell = document.createElement('td');
+        rateLimitCell.textContent = key.rate_limit;
+        row.appendChild(rateLimitCell);
+        
+        tableBody.appendChild(row);
+    });
+    
+    // 如果有更多未显示的行
+    if (importPreviewData.length > 10) {
+        const moreRow = document.createElement('tr');
+        const moreCell = document.createElement('td');
+        moreCell.colSpan = 4;
+        moreCell.textContent = `... 另外 ${importPreviewData.length - 10} 个密钥未在预览中显示`;
+        moreCell.className = 'text-center text-muted';
+        moreRow.appendChild(moreCell);
+        tableBody.appendChild(moreRow);
+    }
+}
+
+// 确认导入密钥
+async function confirmImport() {
+    if (importPreviewData.length === 0) {
+        showToast('没有要导入的密钥', 'warning');
+        return;
+    }
+    
+    try {
+        // 显示加载状态
+        const importBtn = document.getElementById('confirm-import-btn');
+        const originalText = importBtn.textContent;
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导入中...';
+        
+        // 发送请求
+        const response = await apiRequest('/api/admin/keys/batch', {
+            method: 'POST',
+            body: JSON.stringify({
+                keys: importPreviewData
+            })
+        });
+        
+        if (response.success) {
+            // 隐藏模态框
+            bootstrap.Modal.getInstance(document.getElementById('importKeysModal')).hide();
+            
+            // 刷新密钥列表
+            await loadKeys();
+            
+            // 显示成功消息
+            const successCount = response.imported || importPreviewData.length;
+            const skippedCount = response.skipped || 0;
+            let message = `成功导入 ${successCount} 个密钥`;
+            if (skippedCount > 0) {
+                message += `，${skippedCount} 个重复密钥已跳过`;
+            }
+            showToast(message, 'success');
+        } else {
+            showToast('导入失败: ' + (response.message || '未知错误'), 'danger');
+        }
+    } catch (error) {
+        console.error('导入失败:', error);
+        showToast('导入失败: ' + error.message, 'danger');
+    } finally {
+        // 恢复按钮状态
+        const importBtn = document.getElementById('confirm-import-btn');
+        importBtn.disabled = false;
+        importBtn.textContent = '导入';
+    }
+} 
