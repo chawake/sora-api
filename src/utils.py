@@ -72,7 +72,6 @@ async def download_and_save_image(image_url: str) -> str:
             logger.debug(f"URL已是自定义前缀路径: {image_url}")
         
         # 如果是相对路径，补充完整的URL
-        from urllib.parse import urlparse
         parsed_base_url = urlparse(Config.BASE_URL)
         if image_url.startswith("/"):
             return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
@@ -140,7 +139,6 @@ async def download_and_save_image(image_url: str) -> str:
         image_dir_relative = os.path.relpath(Config.IMAGE_SAVE_DIR, Config.STATIC_DIR)
         
         # 2. 处理基础URL可能包含子路径的情况
-        from urllib.parse import urlparse
         parsed_base_url = urlparse(Config.BASE_URL)
         base_path = parsed_base_url.path.rstrip('/')
         
