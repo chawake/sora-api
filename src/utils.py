@@ -59,16 +59,26 @@ async def download_and_save_image(image_url: str) -> str:
     parsed_base_url = urlparse(Config.BASE_URL)
     base_path = parsed_base_url.path.rstrip('/')
     
-    # 1. 检查是否匹配配置的图片URL路径
-    image_url_path = Config.IMAGE_URL_PATH
-    if not image_url_path.startswith('/'):
-        image_url_path = f"/{image_url_path}"
+    # 直接检查常见的图片URL模式
+    local_url_patterns = [
+        "/images/",
+        "/static/images/",
+        f"{base_path}/images/",
+        f"{base_path}/static/images/"
+    ]
     
-    # 检查URL是否以图片URL路径开头或包含该路径
-    if (image_url.startswith(image_url_path) or 
-        image_url.startswith(f"{base_path}{image_url_path}") or
-        image_url_path in image_url):
-        
+    # 检查是否有自定义前缀
+    if Config.STATIC_PATH_PREFIX:
+        prefix = Config.STATIC_PATH_PREFIX
+        if not prefix.startswith('/'):
+            prefix = f"/{prefix}"
+        local_url_patterns.append(f"{prefix}/images/")
+        local_url_patterns.append(f"{base_path}{prefix}/images/")
+    
+    # 检查是否符合任何本地URL模式
+    is_local_url = any(pattern in image_url for pattern in local_url_patterns)
+    
+    if is_local_url:
         if IMAGE_DEBUG:
             logger.debug(f"URL已是本地图片路径: {image_url}")
         
@@ -76,29 +86,6 @@ async def download_and_save_image(image_url: str) -> str:
         if image_url.startswith("/"):
             return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
         return image_url
-    
-    # 2. 兼容性检查 - 检查旧格式路径
-    if image_url.startswith("/static/") or "/static/" in image_url:
-        if IMAGE_DEBUG:
-            logger.debug(f"URL已是旧格式本地静态路径: {image_url}")
-        
-        if image_url.startswith("/"):
-            return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
-        return image_url
-    
-    # 3. 兼容性检查 - 检查带有自定义前缀的路径
-    static_path_prefix = Config.STATIC_PATH_PREFIX
-    if static_path_prefix:
-        if not static_path_prefix.startswith('/'):
-            static_path_prefix = f"/{static_path_prefix}"
-            
-        if image_url.startswith(f"{static_path_prefix}/images/") or f"{static_path_prefix}/images/" in image_url:
-            if IMAGE_DEBUG:
-                logger.debug(f"URL已是自定义前缀路径: {image_url}")
-            
-            if image_url.startswith("/"):
-                return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
-            return image_url
     
     try:
         # 生成文件名和保存路径
@@ -165,32 +152,30 @@ async def download_and_save_image(image_url: str) -> str:
         parsed_base_url = urlparse(Config.BASE_URL)
         base_path = parsed_base_url.path.rstrip('/')
         
-        # 直接使用配置的图片URL路径，确保开头有斜杠
-        image_url_path = Config.IMAGE_URL_PATH
-        if not image_url_path.startswith('/'):
-            image_url_path = f"/{image_url_path}"
-            
-        # 生成图片的相对URL路径
-        relative_url = f"{image_url_path}/{filename}"
+        # 使用固定的图片URL格式
+        relative_url = f"/images/{filename}"
         
-        # 如果基础URL有子路径，添加到相对URL路径前
+        # 如果设置了STATIC_PATH_PREFIX，优先使用该前缀
+        if Config.STATIC_PATH_PREFIX:
+            prefix = Config.STATIC_PATH_PREFIX
+            if not prefix.startswith('/'):
+                prefix = f"/{prefix}"
+            relative_url = f"{prefix}/images/{filename}"
+        
+        # 如果BASE_URL有子路径，添加到相对路径前
         if base_path:
             relative_url = f"{base_path}{relative_url}"
-            
-        # 处理路径中可能的重复斜杠
+        
+        # 处理重复斜杠
         while "//" in relative_url:
             relative_url = relative_url.replace("//", "/")
-            
+        
         # 生成完整URL
         full_url = f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{relative_url}"
         
         if IMAGE_DEBUG:
-            logger.debug(f"生成图片URL: {full_url}")
-            logger.debug(f"图片保存位置: {save_path}")
-        
-        if IMAGE_DEBUG:
             logger.debug(f"图片保存成功: {full_url}")
-            logger.debug(f"相对路径: {relative_url}")
+            logger.debug(f"图片保存路径: {save_path}")
         
         return full_url
     except Exception as e:
