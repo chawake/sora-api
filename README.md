@@ -28,6 +28,13 @@
 你可以直接运行不指定任何环境变量，所有环境变量都可以在面板里面配置
 
 
+管理员登录密钥默认：sk-123456
+
+
+api请求密钥不设置默认和管理员登录密钥相同
+
+
+
 ### 方法一：直接运行
 
 1. 克隆仓库
@@ -215,7 +222,6 @@
 | `PROXY_PORT` | HTTP代理端口 | 空（不使用代理） | `7890` |
 | `PROXY_USER` | HTTP代理用户名 | 空（不使用认证） | `username` |
 | `PROXY_PASS` | HTTP代理密码 | 空（不使用认证） | `password` |
-| `STATIC_DIR` | 静态文件目录 | `src/static` | `/data/static` |
 | `IMAGE_SAVE_DIR` | 图片保存目录 | `src/static/images` | `/data/images` |
 | `IMAGE_LOCALIZATION` | 是否启用图片本地化 | `False` | `True` |
 | `API_KEYS` | API密钥配置（JSON格式） | 空 | `[{"key":"Bearer token", "weight":1, "max_rpm":60}]` |
@@ -507,6 +513,4 @@ if __name__ == "__main__":
 
 欢迎提交问题报告和改进建议！
 
-## 许可证
 
-MIT 
