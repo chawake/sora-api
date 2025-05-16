@@ -1391,54 +1391,82 @@ async function previewImport() {
         const lines = keysText.split('\n').filter(line => line.trim());
         importPreviewData = [];
         
-        for (const line of lines) {
-            // 检查是否是单行密钥格式（不包含逗号）
-            if (!line.includes(',')) {
-                const keyValue = line.trim();
+        console.log(`开始处理 ${lines.length} 行数据`);
+        
+        for (let i = 0; i < lines.length; i++) {
+            try {
+                const line = lines[i];
+                // 安全获取子字符串
+                const safeSubstring = (str, start, end) => {
+                    if (!str) return '';
+                    return str.substring(start, Math.min(end, str.length));
+                };
                 
-                // 验证密钥格式
-                if (!keyValue.startsWith('sk-') && !keyValue.match(/^[a-zA-Z0-9_-]{20,}$/)) {
-                    continue; // 跳过不符合OpenAI API密钥格式的行
+                console.log(`处理第 ${i+1} 行: ${safeSubstring(line, 0, 10)}...`);
+                
+                // 检查是否是单行密钥格式（不包含逗号）
+                if (!line.includes(',')) {
+                    const keyValue = line.trim();
+                    console.log(`  单行格式，密钥值: ${safeSubstring(keyValue, 0, 5)}...`);
+                    
+                    // 几乎不做验证 - 只要不是空字符串或太短就接受
+                    if (!keyValue || keyValue.length < 5) {
+                        console.log(`  密钥太短，跳过`);
+                        continue; // 跳过太短的密钥
+                    }
+                    
+                    // 为密钥自动生成名称（使用前5位）
+                    const keyName = `密钥_${safeSubstring(keyValue, 0, 5)}`;
+                    
+                    importPreviewData.push({
+                        name: keyName,
+                        key: keyValue,
+                        weight: 1,
+                        rate_limit: 60,
+                        enabled: document.getElementById('auto-enable-keys').checked
+                    });
+                    console.log(`  添加到预览数据，当前共 ${importPreviewData.length} 个`);
+                    continue;
                 }
                 
-                // 为密钥自动生成名称（使用前6位）
-                const keyName = `密钥_${keyValue.substring(0, 6)}`;
+                // 处理标准格式（带逗号分隔）
+                const parts = line.split(',').map(part => part.trim());
+                console.log(`  标准格式，分割后有 ${parts.length} 部分`);
+                
+                if (parts.length < 2) {
+                    console.log(`  部分数量不足2，跳过`);
+                    continue; // 跳过格式不正确的行
+                }
+                
+                const keyName = parts[0] || `密钥_未命名_${i+1}`;
+                const keyValue = parts[1] || '';
+                const weight = parts.length > 2 ? parseInt(parts[2]) || 1 : 1;
+                const rateLimit = parts.length > 3 ? parseInt(parts[3]) || 60 : 60;
+                
+                console.log(`  名称: ${keyName}, 密钥: ${safeSubstring(keyValue, 0, 5)}..., 权重: ${weight}, 速率: ${rateLimit}`);
+                
+                // 几乎不做验证 - 只要不是空字符串或太短就接受
+                if (!keyValue || keyValue.length < 5) {
+                    console.log(`  密钥太短，跳过`);
+                    continue; // 跳过太短的密钥
+                }
                 
                 importPreviewData.push({
                     name: keyName,
                     key: keyValue,
-                    weight: 1,
-                    rate_limit: 60,
+                    weight: weight,
+                    rate_limit: rateLimit,
                     enabled: document.getElementById('auto-enable-keys').checked
                 });
+                console.log(`  添加到预览数据，当前共 ${importPreviewData.length} 个`);
+            } catch (lineError) {
+                console.error(`处理第 ${i+1} 行时出错:`, lineError);
+                // 继续处理下一行
                 continue;
             }
-            
-            // 处理标准格式（带逗号分隔）
-            const parts = line.split(',').map(part => part.trim());
-            
-            if (parts.length < 2) {
-                continue; // 跳过格式不正确的行
-            }
-            
-            const keyName = parts[0];
-            const keyValue = parts[1];
-            const weight = parts.length > 2 ? parseInt(parts[2]) || 1 : 1;
-            const rateLimit = parts.length > 3 ? parseInt(parts[3]) || 60 : 60;
-            
-            // 验证密钥格式
-            if (!keyValue.startsWith('sk-') && !keyValue.match(/^[a-zA-Z0-9_-]{20,}$/)) {
-                continue; // 跳过不符合OpenAI API密钥格式的行
-            }
-            
-            importPreviewData.push({
-                name: keyName,
-                key: keyValue,
-                weight: weight,
-                rate_limit: rateLimit,
-                enabled: document.getElementById('auto-enable-keys').checked
-            });
         }
+        
+        console.log(`处理完成，共有 ${importPreviewData.length} 个有效密钥`);
         
         // 显示预览
         if (importPreviewData.length > 0) {
@@ -1446,10 +1474,12 @@ async function previewImport() {
             document.getElementById('preview-count').textContent = importPreviewData.length;
             document.getElementById('import-preview').style.display = 'block';
             document.getElementById('confirm-import-btn').disabled = false;
+            console.log('预览渲染完成，启用导入按钮');
         } else {
             showToast('未找到有效的密钥数据', 'warning');
             document.getElementById('import-preview').style.display = 'none';
             document.getElementById('confirm-import-btn').disabled = true;
+            console.log('未找到有效密钥，禁用导入按钮');
         }
     } catch (error) {
         console.error('预览导入失败:', error);
