@@ -21,9 +21,6 @@ RUN mkdir -p /app/src/static/images && \
 # 暴露端口
 EXPOSE 8890
 
-# 设置健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8890/health || exit 1
 
 # 启动应用
 CMD ["python", "run.py"] 
