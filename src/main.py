@@ -3,41 +3,41 @@ import logging
 from .app import app, key_manager
 from .config import Config
 
-# 获取日志记录器
+# Get the logger
 logger = logging.getLogger("sora-api.main")
 
 def init_app():
-    """初始化应用程序"""
+    """Initialize the application."""
     try:
-        # 密钥管理器已在app.py中初始化并加载完成
-        # 检查是否有可用的密钥
+        # The key manager has been initialized and loaded in app.py
+        # Check if there are any available keys
         if not key_manager.keys:
-            logger.warning("未配置API key，将使用测试密钥")
+            logger.warning("No API key configured, using a test key.")
             key_manager.add_key(
                 key_value="Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5MzQ0ZTY1LWJiYzktNDRkMS1hOWQwLWY5NTdiMDc5YmQwZSIsInR5cCI6IkpXVCJ9...",
-                name="默认测试密钥"
+                name="Default Test Key"
             )
-        
-        logger.info(f"API服务初始化完成，已加载 {len(key_manager.keys)} 个API key")
+
+        logger.info(f"API service initialization complete. Loaded {len(key_manager.keys)} API keys.")
     except Exception as e:
-        logger.error(f"API服务初始化失败: {str(e)}")
+        logger.error(f"API service initialization failed: {str(e)}")
         raise
 
 def start():
-    """启动API服务"""
-    # 初始化应用
+    """Start the API service."""
+    # Initialize the app
     init_app()
-    
-    # 打印配置信息
+
+    # Print configuration information
     Config.print_config()
-    
-    # 启动服务
-    logger.info(f"启动服务: {Config.HOST}:{Config.PORT}")
+
+    # Start the service
+    logger.info(f"Starting service: {Config.HOST}:{Config.PORT}")
     uvicorn.run(
         "src.app:app",
         host=Config.HOST,
         port=Config.PORT,
-        reload=Config.VERBOSE_LOGGING  # 仅在调试模式下开启自动重载
+        reload=Config.VERBOSE_LOGGING  # Enable auto-reload only in debug mode
     )
 
 if __name__ == "__main__":

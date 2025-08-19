@@ -7,14 +7,14 @@ from .auth import verify_jwt_token
 
 logger = logging.getLogger("sora-api.dependencies")
 
-# 全局会话池
+# Global session pool
 session_pool: Optional[aiohttp.ClientSession] = None
 
-# 获取Sora客户端
+# Get Sora client
 def get_sora_client(auth_token: str):
     from ..sora_integration import SoraClient
     
-    # 使用字典缓存客户端实例
+    # Cache client instances in a dict
     if not hasattr(get_sora_client, "clients"):
         get_sora_client.clients = {}
         
@@ -34,98 +34,98 @@ def get_sora_client(auth_token: str):
     
     return get_sora_client.clients[auth_token]
 
-# 从请求头中获取并验证认证令牌
+# Extract and validate auth token from request header
 async def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
-    """从请求头中获取认证令牌"""
+    """Get auth token from the Authorization header"""
     if not authorization:
-        raise HTTPException(status_code=401, detail="缺少认证头")
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
     
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="无效的认证头格式")
+        raise HTTPException(status_code=401, detail="Invalid Authorization header format")
     
     return authorization.replace("Bearer ", "")
 
-# 验证API key
+# Verify API key
 async def verify_api_key(request: Request):
-    """检查请求头中的API密钥"""
+    """Validate API key from the Authorization header"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="缺少或无效的API key")
+        raise HTTPException(status_code=401, detail="Missing or invalid API key")
     
     api_key = auth_header.replace("Bearer ", "")
     
-    # 验证API认证令牌
+    # Validate API auth token
     if Config.API_AUTH_TOKEN:
-        # 如果设置了API_AUTH_TOKEN环境变量，则进行验证
+        # If API_AUTH_TOKEN env var is set, validate against it
         if api_key != Config.API_AUTH_TOKEN:
-            logger.warning(f"API认证失败: 提供的令牌不匹配")
-            raise HTTPException(status_code=401, detail="API认证失败，令牌无效")
+            logger.warning("API authentication failed: provided token does not match")
+            raise HTTPException(status_code=401, detail="API authentication failed: invalid token")
     else:
-        # 如果未设置API_AUTH_TOKEN，则验证是否为管理面板的key
+        # If API_AUTH_TOKEN not set, validate against enabled admin panel keys
         from ..key_manager import key_manager
         valid_keys = [k.get("key") for k in key_manager.get_all_keys() if k.get("is_enabled", False)]
         if api_key not in valid_keys and api_key != Config.ADMIN_KEY:
-            logger.warning(f"API认证失败: 提供的key不在有效列表中")
-            raise HTTPException(status_code=401, detail="API认证失败，key无效")
+            logger.warning("API authentication failed: key not in the valid list")
+            raise HTTPException(status_code=401, detail="API authentication failed: invalid key")
     
     return api_key
 
-# 获取Sora客户端依赖
+# Dependency to get Sora client
 def get_sora_client_dep(specific_key=None):
-    """返回一个依赖函数，用于获取Sora客户端
+    """Return a dependency function to obtain a Sora client.
     
     Args:
-        specific_key: 指定使用的API密钥，如果不为None，则优先使用此密钥
+        specific_key: If provided, use this specific API key instead of selecting automatically.
     """
     async def _get_client(auth_token: str = Depends(verify_api_key)):
         from ..key_manager import key_manager
         
-        # 如果提供了特定密钥，则使用该密钥
+        # Use the specific key if provided
         if specific_key:
             sora_auth_token = specific_key
         else:
-            # 使用密钥管理器获取可用的API密钥
+            # Use key manager to obtain an available API key
             sora_auth_token = key_manager.get_key()
             if not sora_auth_token:
-                raise HTTPException(status_code=429, detail="所有API key都已达到速率限制")
+                raise HTTPException(status_code=429, detail="All API keys have reached the rate limit")
             
-        # 获取Sora客户端
+        # Get Sora client
         return get_sora_client(sora_auth_token), sora_auth_token
     
     return _get_client
 
-# 验证JWT令牌并验证管理员权限
+# Verify JWT token and admin privileges
 async def verify_admin_jwt(token: str = Depends(get_token_from_header)) -> Dict[str, Any]:
-    """验证JWT令牌并确认管理员权限"""
-    # 验证JWT令牌
+    """Validate JWT token and confirm admin privileges"""
+    # Verify JWT token
     payload = verify_jwt_token(token)
     
-    # 验证是否为管理员角色
+    # Check admin role
     if payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="没有管理员权限")
+        raise HTTPException(status_code=403, detail="Admin privileges required")
     
     return payload
 
-# 验证管理员权限（传统方法，保留向后兼容性）
+# Verify admin privileges (legacy method for backward compatibility)
 async def verify_admin(request: Request):
-    """验证管理员权限"""
+    """Verify admin privileges"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="未授权")
+        raise HTTPException(status_code=401, detail="Unauthorized")
     
     token = auth_header.replace("Bearer ", "")
     
-    # 尝试JWT验证
+    # Try JWT verification first
     try:
         payload = verify_jwt_token(token)
         if payload.get("role") == "admin":
             return token
     except HTTPException:
-        # JWT验证失败，尝试传统验证
+        # If JWT verification fails, fall back to legacy validation
         pass
     
-    # 传统验证（直接验证管理员密钥）
+    # Legacy validation (directly compare with admin key)
     if token != Config.ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="没有管理员权限")
+        raise HTTPException(status_code=403, detail="Admin privileges required")
     
-    return token 
+    return token

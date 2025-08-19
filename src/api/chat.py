@@ -12,10 +12,10 @@ from ..services.image_service import process_image_task, format_think_block
 from ..services.streaming import generate_streaming_response, generate_streaming_remix_response
 from ..key_manager import key_manager
 
-# 设置日志
+# Configure logging
 logger = logging.getLogger("sora-api.chat")
 
-# 创建路由
+# Create router
 router = APIRouter()
 
 @router.post("/chat/completions")
@@ -26,40 +26,40 @@ async def chat_completions(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    聊天完成端点 - 处理文本到图像和图像到图像的请求
-    兼容OpenAI API格式
+    Chat completions endpoint - handles text-to-image and image-to-image requests.
+    Compatible with OpenAI API format.
     """
-    # 解析客户端信息
+    # Parse client info
     sora_client, sora_auth_token = client_info
     
-    # 记录开始时间
+    # Record start time
     start_time = time.time()
     success = False
     
     try:
-        # 分析用户消息
+        # Analyze user messages
         user_messages = [m for m in request.messages if m.role == "user"]
         if not user_messages:
-            raise HTTPException(status_code=400, detail="至少需要一条用户消息")
+            raise HTTPException(status_code=400, detail="At least one user message is required")
         
         last_user_message = user_messages[-1]
         prompt = ""
         image_data = None
         
-        # 提取提示词和图片数据
+        # Extract prompt and image data
         if isinstance(last_user_message.content, str):
-            # 简单的字符串内容
+            # Simple string content
             prompt = last_user_message.content
             
-            # 检查是否包含内嵌的base64图片
+            # Check for embedded base64 image
             pattern = r'data:image\/[^;]+;base64,([^"]+)'
             match = re.search(pattern, prompt)
             if match:
                 image_data = match.group(1)
-                # 从提示词中删除base64数据
-                prompt = re.sub(pattern, "[已上传图片]", prompt)
+                # Remove base64 data from the prompt
+                prompt = re.sub(pattern, "[uploaded image]", prompt)
         else:
-            # 多模态内容，提取文本和图片
+            # Multimodal content: extract text and images
             content_items = last_user_message.content
             text_parts = []
             
@@ -67,20 +67,20 @@ async def chat_completions(
                 if item.type == "text" and item.text:
                     text_parts.append(item.text)
                 elif item.type == "image_url" and item.image_url:
-                    # 如果有图片URL包含base64数据
+                    # Handle image URL with base64 data
                     url = item.image_url.get("url", "")
                     if url.startswith("data:image/"):
                         pattern = r'data:image\/[^;]+;base64,([^"]+)'
                         match = re.search(pattern, url)
                         if match:
                             image_data = match.group(1)
-                            text_parts.append("[已上传图片]")
+                            text_parts.append("[uploaded image]")
             
             prompt = " ".join(text_parts)
         
-        # 检查是否为流式响应
+        # Streaming vs non-streaming response
         if request.stream:
-            # 流式响应处理
+            # Streaming response handling
             if image_data:
                 response = StreamingResponse(
                     generate_streaming_remix_response(sora_client, prompt, image_data, request.n),
@@ -93,16 +93,16 @@ async def chat_completions(
                 )
             success = True
             
-            # 记录请求结果
+            # Record request result
             response_time = time.time() - start_time
             key_manager.record_request_result(sora_auth_token, success, response_time)
             
             return response
         else:
-            # 非流式响应 - 返回一个即时响应，表示任务已接收
+            # Non-streaming response - return immediate acknowledgement
             request_id = f"chatcmpl-{uuid.uuid4().hex}"
             
-            # 创建后台任务
+            # Create background task
             if image_data:
                 background_tasks.add_task(
                     process_image_task,
@@ -125,8 +125,8 @@ async def chat_completions(
                     height=480
                 )
                 
-            # 返回正在处理的响应
-            processing_message = "正在准备生成任务，请稍候..."
+            # Return processing response
+            processing_message = "Preparing generation task, please wait..."
             response = {
                 "id": request_id,
                 "object": "chat.completion",
@@ -151,7 +151,7 @@ async def chat_completions(
             
             success = True
             
-            # 记录请求结果
+            # Record request result
             response_time = time.time() - start_time
             key_manager.record_request_result(sora_auth_token, success, response_time)
             
@@ -159,10 +159,10 @@ async def chat_completions(
             
     except Exception as e:
         success = False
-        logger.error(f"处理聊天完成请求失败: {str(e)}", exc_info=True)
+        logger.error(f"Failed to process chat completion request: {str(e)}", exc_info=True)
         
-        # 记录请求结果
+        # Record request result
         response_time = time.time() - start_time
         key_manager.record_request_result(sora_auth_token, success, response_time)
         
-        raise HTTPException(status_code=500, detail=f"图像生成失败: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")

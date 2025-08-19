@@ -6,16 +6,16 @@ import psutil
 from fastapi import APIRouter, Depends
 from ..key_manager import key_manager
 
-# 创建路由
+# Create router
 router = APIRouter()
 
 @router.get("/health")
 async def health_check():
     """
-    API健康检查端点
+    API health check endpoint
     
-    返回:
-        基本的健康状态信息
+    Returns:
+        Basic health status information
     """
     return {
         "status": "ok",
@@ -26,12 +26,12 @@ async def health_check():
 @router.get("/health/extended")
 async def extended_health_check():
     """
-    扩展的健康检查端点
+    Extended health check endpoint
     
-    返回:
-        详细的系统和服务状态信息
+    Returns:
+        Detailed system and service status information
     """
-    # 获取系统信息
+    # Get system information
     system_info = {
         "platform": platform.platform(),
         "python_version": sys.version,
@@ -41,7 +41,7 @@ async def extended_health_check():
         "disk_usage": psutil.disk_usage('/').percent
     }
     
-    # 获取服务信息
+    # Get service information
     service_info = {
         "uptime": time.time() - psutil.Process(os.getpid()).create_time(),
         "active_keys": sum(1 for k in key_manager.keys if k.get("is_enabled", False)),
@@ -54,4 +54,4 @@ async def extended_health_check():
         "version": "2.0.0",
         "system": system_info,
         "service": service_info,
-    } 
+    }

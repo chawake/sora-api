@@ -1,68 +1,63 @@
-# OpenAI兼容的Sora API服务
+# OpenAI-Compatible Sora API Service
 
-这是一个为Sora提供OpenAI兼容接口的API服务。该服务使用cloudscraper绕过Cloudflare验证，支持多key轮询、并发处理和标准的OpenAI接口格式。
+An API service that provides an OpenAI-compatible interface for Sora. It uses cloudscraper to bypass Cloudflare checks and supports multi-key rotation, concurrent processing, and standard OpenAI response formats.
 
-## 功能特点
+## Features
 
-- **OpenAI兼容接口**：完全兼容OpenAI的`/v1/chat/completions`接口
-- **CF验证绕过**：使用cloudscraper库成功绕过Cloudflare验证
-- **多key轮询**：支持多个Sora认证token，根据权重和速率限制智能选择
-- **并发处理**：支持多个并发请求
-- **流式响应**：支持SSE格式的流式响应
-- **图像处理**：支持文本到图像生成和图像到图像生成（Remix）
-- **异步处理**：支持异步生成图像，返回立即响应，防止请求超时
-- **状态查询**：提供API端点查询异步任务的状态和结果
-- **优化性能**：经过代码优化，提高请求处理速度和资源利用率
-- **健康检查**：支持容器健康检查功能
+- **OpenAI-compatible API**: Fully compatible with OpenAI's `/v1/chat/completions` endpoint
+- **Cloudflare bypass**: Uses the `cloudscraper` library to pass Cloudflare verification
+- **Multi-key rotation**: Supports multiple Sora auth tokens; selects intelligently by weight and rate limits
+- **Concurrency**: Handles multiple concurrent requests
+- **Streaming responses**: Supports SSE streaming format
+- **Image generation**: Supports text-to-image and image-to-image (Remix)
+- **Asynchronous processing**: Asynchronously generates images with immediate ack responses to avoid timeouts
+- **Status query**: API endpoint to check async task status and results
+- **Performance optimizations**: Improved throughput and resource efficiency
+- **Health check**: Container healthcheck endpoint
 
-## 环境要求
+## Requirements
 
 - Python 3.8+
 - FastAPI 0.95.0+
 - cloudscraper 1.2.71+
-- 其他依赖见requirements.txt
+- See `requirements.txt` for more
 
-## 快速部署指南
+## Quick Start
 
+You can run without setting any environment variables; all config can be set in the admin panel.
 
-你可以直接运行不指定任何环境变量，所有环境变量都可以在面板里面配置
+- Default admin login key: `sk-123456`
+- If `API_AUTH_TOKEN` is not set, API requests use the admin key by default
 
-
-管理员登录密钥默认：sk-123456
-
-
-api请求密钥不设置默认和管理员登录密钥相同
-
-
-docker 一键运行
-   ```bash
-   docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:latest
-   ```
+One-click Docker run:
+```bash
+docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:latest
+```
 
 
 
-### 方法一：直接运行
+### Method 1: Run directly
 
-1. 克隆仓库
+1. Clone the repo
    ```bash
    git clone https://github.com/1hei1/sora-api.git
    cd sora-api
    ```
 
-2. 安装依赖
+2. Install dependencies
    ```bash
    pip install -r requirements.txt
    ```
 
-3. 配置API Keys（两种方式）
-   - **方式1**: 创建api_keys.json文件
+3. Configure API keys (two options)
+   - **Option 1**: Create an `api_keys.json` file
      ```json
      [
        {"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60},
        {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}
      ]
      ```
-   - **方式2**: 设置环境变量
+   - **Option 2**: Set environment variables
      ```bash
      # Linux/macOS
      export API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]'  
@@ -74,68 +69,68 @@ docker 一键运行
      set API_KEYS=[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]  
      ```
 
-4. 配置代理（可选，如果需要）
+4. Configure proxy (optional)
    ```bash
-   # Linux/macOS - 基本代理
+   # Linux/macOS - Basic proxy
    export PROXY_HOST=127.0.0.1
    export PROXY_PORT=7890
    
-   # Linux/macOS - 带认证的代理
+   # Linux/macOS - Proxy with auth
    export PROXY_HOST=127.0.0.1
    export PROXY_PORT=7890
    export PROXY_USER=username
    export PROXY_PASS=password
    
-   # Windows (PowerShell) - 基本代理
+   # Windows (PowerShell) - Basic proxy
    $env:PROXY_HOST="127.0.0.1"
    $env:PROXY_PORT="7890"
    
-   # Windows (PowerShell) - 带认证的代理
+   # Windows (PowerShell) - Proxy with auth
    $env:PROXY_HOST="127.0.0.1"
    $env:PROXY_PORT="7890"
    $env:PROXY_USER="username"
    $env:PROXY_PASS="password"
    
-   # Windows (CMD) - 基本代理
+   # Windows (CMD) - Basic proxy
    set PROXY_HOST=127.0.0.1
    set PROXY_PORT=7890
    
-   # Windows (CMD) - 带认证的代理
+   # Windows (CMD) - Proxy with auth
    set PROXY_HOST=127.0.0.1
    set PROXY_PORT=7890
    set PROXY_USER=username
    set PROXY_PASS=password
    ```
 
-5. 启动服务
+5. Start the service
    ```bash
    python run.py
    ```
 
-6. 访问服务
-   - API服务地址: http://localhost:8890
-   - 后台管理面板: http://localhost:8890/admin
+6. Access the service
+   - API base URL: http://localhost:8890
+   - Admin panel: http://localhost:8890/admin
 
-### 方法二：Docker部署
+### Method 2: Docker deployment
 
-1. 构建Docker镜像
+1. Build the Docker image
    ```bash
    docker build -t sora-api .
    ```
 
-2. 运行Docker容器（不同配置选项）
+2. Run the Docker container (options)
 
-   **基本运行方式**:
+   **Basic run**:
    ```bash
    docker run -d -p 8890:8890 --name sora-api sora-api
    ```
 
-   **使用预打包镜像**:
+   **Use prebuilt image**:
    ```bash
    docker run -d -p 8890:8890 --name sora-api 1hei1/sora-api:latest
    ```
 
-   **使用预打包镜像并配置API密钥**:
+   **Prebuilt image with API keys**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]' \
@@ -143,7 +138,7 @@ docker 一键运行
      1hei1/sora-api:v0.1
    ```
 
-   **使用预打包镜像并配置代理**:
+   **Prebuilt image with proxy**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}]' \
@@ -153,7 +148,7 @@ docker 一键运行
      1hei1/sora-api:v0.1
    ```
 
-   **带API密钥配置**:
+   **Custom image with API keys**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}, {"key": "Bearer your-sora-token-2", "weight": 2, "max_rpm": 60}]' \
@@ -161,7 +156,7 @@ docker 一键运行
      sora-api
    ```
 
-   **带基本代理配置**:
+   **Custom image with basic proxy**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}]' \
@@ -171,7 +166,7 @@ docker 一键运行
      sora-api
    ```
 
-   **带认证代理配置**:
+   **Custom image with auth proxy**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}]' \
@@ -183,9 +178,9 @@ docker 一键运行
      sora-api
    ```
 
-   **使用外部配置文件**:
+   **Mount external config file**:
    ```bash
-   # 首先确保api_keys.json文件已正确配置
+   # Ensure api_keys.json is configured locally first
    docker run -d -p 8890:8890 \
      -v $(pwd)/api_keys.json:/app/api_keys.json \
      -e PROXY_HOST=host.docker.internal \
@@ -194,7 +189,7 @@ docker 一键运行
      sora-api
    ```
 
-   **挂载本地目录保存图片**:
+   **Mount local directory for image storage**:
    ```bash
    docker run -d -p 8890:8890 \
      -v /your/local/path:/app/src/static/images \
@@ -202,7 +197,7 @@ docker 一键运行
      sora-api
    ```
 
-   **启用详细日志**:
+   **Enable verbose logging**:
    ```bash
    docker run -d -p 8890:8890 \
      -e API_KEYS='[{"key": "Bearer your-sora-token-1", "weight": 1, "max_rpm": 60}]' \
@@ -211,46 +206,46 @@ docker 一键运行
      sora-api
    ```
 
-   **注意**: 在Docker中使用宿主机代理时，请使用`host.docker.internal`而不是`127.0.0.1`作为代理主机地址。
+   **Note**: When using the host proxy inside Docker, use `host.docker.internal` instead of `127.0.0.1` for the proxy host.
 
-3. 检查容器状态
+3. Check container status
    ```bash
    docker ps
    docker logs sora-api
    ```
 
-4. 停止和移除容器
+4. Stop and remove the container
    ```bash
    docker stop sora-api
    docker rm sora-api
    ```
 
-## 环境变量说明
+## Environment Variables
 
-| 环境变量 | 描述 | 默认值 | 示例 |
-|---------|------|--------|------|
-| `API_HOST` | API服务监听地址 | `0.0.0.0` | `127.0.0.1` |
-| `API_PORT` | API服务端口 | `8890` | `9000` |
-| `BASE_URL` | API基础URL（生成图片的时候需要用到） | `http://0.0.0.0:8890` | `https://api.example.com` |  
-| `PROXY_HOST` | HTTP代理主机 | 空（不使用代理） | `127.0.0.1` |
-| `PROXY_PORT` | HTTP代理端口 | 空（不使用代理） | `7890` |
-| `PROXY_USER` | HTTP代理用户名 | 空（不使用认证） | `username` |
-| `PROXY_PASS` | HTTP代理密码 | 空（不使用认证） | `password` |
-| `IMAGE_SAVE_DIR` | 图片保存目录 | `src/static/images` | `/data/images` |
-| `IMAGE_LOCALIZATION` | 是否启用图片本地化 | `False` | `True` |
-| `ADMIN_KEY` | 管理员API密钥（登录界面输入的密码） | `sk-123456` | `sk-youradminkey` |
-| `API_AUTH_TOKEN` | API认证令牌（使用api服务传入的key） | 空 | `your-auth-token` |
-| `VERBOSE_LOGGING` | 是否启用详细日志 | `False` | `True` |
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `API_HOST` | API listen address | `0.0.0.0` | `127.0.0.1` |
+| `API_PORT` | API port | `8890` | `9000` |
+| `BASE_URL` | Base URL used when localizing images | `http://0.0.0.0:8890` | `https://api.example.com` |
+| `PROXY_HOST` | HTTP proxy host | empty (disabled) | `127.0.0.1` |
+| `PROXY_PORT` | HTTP proxy port | empty (disabled) | `7890` |
+| `PROXY_USER` | HTTP proxy username | empty (no auth) | `username` |
+| `PROXY_PASS` | HTTP proxy password | empty (no auth) | `password` |
+| `IMAGE_SAVE_DIR` | Image save directory | `src/static/images` | `/data/images` |
+| `IMAGE_LOCALIZATION` | Enable local image storage | `False` | `True` |
+| `ADMIN_KEY` | Admin API key (password for admin panel) | `sk-123456` | `sk-youradminkey` |
+| `API_AUTH_TOKEN` | API auth token (key used by clients) | empty | `your-auth-token` |
+| `VERBOSE_LOGGING` | Enable verbose logs | `False` | `True` |
 
-## API密钥配置说明
+## API Key Configuration
 
-API密钥配置采用JSON格式，每个密钥包含以下属性：
+API keys use JSON format. Each key has:
 
-- `key`: Sora认证令牌（必须包含Bearer前缀）
-- `weight`: 轮询权重，数字越大被选中概率越高
-- `max_rpm`: 每分钟最大请求数（速率限制）
+- `key`: Sora auth token (must include `Bearer` prefix)
+- `weight`: Polling weight; higher value increases selection probability
+- `max_rpm`: Max requests per minute (rate limit)
 
-示例:
+Example:
 ```json
 [
   {
@@ -266,75 +261,75 @@ API密钥配置采用JSON格式，每个密钥包含以下属性：
 ]
 ```
 
-## 使用示例
+## Usage Examples
 
-### 使用curl发送请求
+### Using curl
 
 ```bash
-# 文本到图像请求（非流式）
+# Text-to-image (non-streaming)
 curl -X POST http://localhost:8890/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
     "model": "sora-1.0",
     "messages": [
-      {"role": "user", "content": "生成一只在草地上奔跑的金毛犬"}
+      {"role": "user", "content": "Generate a golden retriever running on the grass"}
     ],
     "n": 1,
     "stream": false
   }'
 
-# 文本到图像请求（流式）
+# Text-to-image (streaming)
 curl -X POST http://localhost:8890/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
     "model": "sora-1.0",
     "messages": [
-      {"role": "user", "content": "生成一只在草地上奔跑的金毛犬"}
+      {"role": "user", "content": "Generate a golden retriever running on the grass"}
     ],
     "n": 1,
     "stream": true
   }'
 
-# 查询异步任务状态
+# Check async task status
 curl -X GET http://localhost:8890/v1/generation/chatcmpl-123456789abcdef \
   -H "Authorization: Bearer your-api-key"
 ```
 
-## 常见问题排查
+## Troubleshooting
 
-1. **连接超时或无法连接**
-   - 检查代理配置是否正确
-   - 如使用代理认证，确认用户名密码正确
-   - 确认Sora服务器是否可用
-   - 检查本地网络连接
+1. **Connection timeouts or failures**
+   - Verify proxy configuration
+   - If using proxy auth, confirm username/password
+   - Ensure the Sora service is reachable
+   - Check local network connectivity
 
-2. **API密钥加载失败**
-   - 确认api_keys.json格式正确
-   - 检查环境变量API_KEYS是否正确设置
-   - 查看日志中的错误信息
+2. **Failed to load API keys**
+   - Validate the `api_keys.json` format
+   - Check that the `API_KEYS` env var is set correctly
+   - Inspect logs for errors
 
-3. **图片生成失败**
-   - 确认Sora令牌有效性
-   - 查看日志中的错误信息
-   - 检查是否超出账户额度限制
+3. **Image generation failed**
+   - Ensure Sora token is valid
+   - Check error logs
+   - Verify account quota/limits
 
-4. **Docker容器启动失败**
-   - 检查端口是否被占用
-   - 确认环境变量设置正确
-   - 查看Docker日志中的错误信息
+4. **Docker container fails to start**
+   - Check for port conflicts
+   - Ensure environment variables are correct
+   - Review Docker logs for errors
    
-5. **环境变量API_AUTH_TOKEN和ADMIN_KEY的区别**
-   - 环境变量 API_AUTH_TOKEN代表你在cheery studio 或者newapi里调用填写的令牌
-   - 环境变量 ADMIN_KEY 代表你管理面板的登录密码
-   - 当不设置API_AUTH_TOKE时 其值默认等于ADMIN_KEY的值
+5. **Difference between `API_AUTH_TOKEN` and `ADMIN_KEY`**
+   - `API_AUTH_TOKEN`: The token your client (e.g., Cheery Studio or NewAPI) uses to call this API
+   - `ADMIN_KEY`: The admin panel login password
+   - If `API_AUTH_TOKEN` is not set, it defaults to the value of `ADMIN_KEY`
    
-6. **环境变量BASE_URL的作用**
-   - 这个是图片本地化时设置的，比如生成了一张图片，获取到图片原始url，由于有的客户端不能访问sora，所以要本地化，这个base_url就是指定本地化图片的url前缀。
+6. **Purpose of `BASE_URL`**
+   - Used when image localization is enabled. Some clients cannot access Sora, so images are localized; `BASE_URL` defines the URL prefix for localized images.
    
-6. **token无效**
-   - 首次使用的token需要设置用户名，可以使用下面的脚本批量设置用户名：
+6. **Invalid token**
+   - Tokens used for the first time may require setting a username. Use the script below to batch set usernames:
  ```python
 import random
 import string
@@ -351,19 +346,19 @@ PROXY = {
     "https": "http://127.0.0.1:7890"
 }
 PROFILE_API = "https://sora.chatgpt.com/backend/me"
-TOKENS_FILE = "tokens.txt"  # 每行一个 Bearer token
-RESULTS_FILE = "update_results.txt"  # 保存更新结果
-USERNAME_LENGTH = 8  # 随机用户名长度
+TOKENS_FILE = "tokens.txt"          # One Bearer token per line
+RESULTS_FILE = "update_results.txt" # Save update results
+USERNAME_LENGTH = 8                  # Random username length
 
 # --- Utilities ---
 def random_username(length: int = USERNAME_LENGTH) -> str:
-    """生成全小写随机用户名"""
+    """Generate a random lowercase username"""
     return ''.join(random.choices(string.ascii_lowercase, k=length))
 
 
 def sanitize_headers(headers: dict) -> dict:
     """
-    移除所有非 Latin-1 字符，确保 headers 可以被底层 HTTP 库正确编码。
+    Remove all non-Latin-1 characters to ensure headers can be encoded by the HTTP library.
     """
     new = {}
     for k, v in headers.items():
@@ -380,8 +375,8 @@ class SoraBatchUpdater:
 
     def update_username_for_token(self, token: str) -> tuple[bool, str]:
         """
-        针对单个 Bearer token，生成随机用户名并发送更新请求。
-        返回 (success, message)。
+        For a single Bearer token, generate a random username and send an update request.
+        Returns (success, message).
         """
         scraper = cloudscraper.create_scraper()
         if self.proxy:
@@ -389,7 +384,7 @@ class SoraBatchUpdater:
 
         headers = {
             "Accept": "*/*",
-            "Accept-Language": "zh-CN,zh;q=0.9",
+            "Accept-Language": "en-US,en;q=0.9",
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
             "sec-ch-ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
@@ -419,7 +414,7 @@ class SoraBatchUpdater:
                 return True, msg
             else:
                 text = resp.text.replace('\n', '')
-                msg = f"Failed {status}: {text}"  # 简要错误信息
+                msg = f"Failed {status}: {text}"  # Brief error message
                 logging.warning("Token %s: %s", token[:6], msg)
                 return False, msg
         except Exception as e:
@@ -429,14 +424,14 @@ class SoraBatchUpdater:
 
     def batch_update(self, tokens: list[str]) -> None:
         """
-        对一组 Bearer token 批量更新用户名，并将结果写入 RESULTS_FILE。
+        Batch update usernames for a list of Bearer tokens and write results to RESULTS_FILE.
         """
         results = []
         for token in tokens:
             success, message = self.update_username_for_token(token)
             results.append((token, success, message))
 
-        # 写入结果文件
+        # Write results
         with open(RESULTS_FILE, 'w', encoding='utf-8') as f:
             for token, success, msg in results:
                 status = 'SUCCESS' if success else 'ERROR'
@@ -445,7 +440,7 @@ class SoraBatchUpdater:
 
 
 def load_tokens(filepath: str) -> list[str]:
-    """从文件加载每行一个 token 的列表"""
+    """Load a list of tokens from file (one per line)"""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             return [line.strip() for line in f if line.strip()]
@@ -465,21 +460,21 @@ if __name__ == '__main__':
 ```
 
 
-## 性能优化
+## Performance Optimizations
 
-最新版本包含以下性能优化：
+The latest version includes:
 
-1. **代码重构**：简化了代码结构，提高可读性和可维护性
-2. **内存优化**：减少不必要的内存使用，优化大型图像处理
-3. **异步处理**：全面使用异步处理提高并发性能
-4. **错误处理**：改进了错误处理和日志记录
-5. **密钥管理**：优化了密钥轮询算法，提高了可靠性
-6. **容器优化**：增强了Docker容器配置，支持健康检查
+1. **Refactoring**: Simplified structure for readability and maintainability
+2. **Memory optimizations**: Reduced unnecessary memory usage; improved large image handling
+3. **Async processing**: Fully async flows for better concurrency
+4. **Error handling**: Improved error handling and logging
+5. **Key management**: Optimized key rotation algorithm for reliability
+6. **Container**: Enhanced Docker config with healthcheck
 
-## 贡献
+## Contributing
 
-欢迎提交问题报告和改进建议！
+Issues and PRs are welcome!
 
-## 许可证
+## License
 
-MIT 
+MIT

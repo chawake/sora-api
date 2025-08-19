@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 
-# 聊天完成请求模型
+# Chat completion request models
 class ContentItem(BaseModel):
     type: str
     text: Optional[str] = None
@@ -22,65 +22,65 @@ class ChatCompletionRequest(BaseModel):
     presence_penalty: Optional[float] = 0
     frequency_penalty: Optional[float] = 0
 
-# API密钥创建模型
+# API key creation model
 class ApiKeyCreate(BaseModel):
-    name: str = Field(..., description="密钥名称")
-    key_value: str = Field(..., description="密钥值")
-    weight: int = Field(1, description="权重")
-    rate_limit: int = Field(60, description="速率限制(每分钟请求数)")
-    is_enabled: bool = Field(True, description="是否启用")
-    notes: Optional[str] = Field(None, description="备注")
+    name: str = Field(..., description="Key name")
+    key_value: str = Field(..., description="Key value")
+    weight: int = Field(1, description="Weight")
+    rate_limit: int = Field(60, description="Rate limit (requests per minute)")
+    is_enabled: bool = Field(True, description="Enabled")
+    notes: Optional[str] = Field(None, description="Notes")
 
-# API密钥更新模型
+# API key update model
 class ApiKeyUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="密钥名称")
-    key_value: Optional[str] = Field(None, description="密钥值")
-    weight: Optional[int] = Field(None, description="权重")
-    rate_limit: Optional[int] = Field(None, description="速率限制(每分钟请求数)")
-    is_enabled: Optional[bool] = Field(None, description="是否启用")
-    notes: Optional[str] = Field(None, description="备注")
+    name: Optional[str] = Field(None, description="Key name")
+    key_value: Optional[str] = Field(None, description="Key value")
+    weight: Optional[int] = Field(None, description="Weight")
+    rate_limit: Optional[int] = Field(None, description="Rate limit (requests per minute)")
+    is_enabled: Optional[bool] = Field(None, description="Enabled")
+    notes: Optional[str] = Field(None, description="Notes")
 
-# 批量操作基础模型
+# Batch operation base model
 class BatchOperation(BaseModel):
-    action: str = Field(..., description="操作类型：import, enable, disable, delete")
-    key_ids: Optional[List[str]] = Field(None, description="要操作的密钥ID列表")
+    action: str = Field(..., description="Operation type: import, enable, disable, delete")
+    key_ids: Optional[List[str]] = Field(None, description="List of key IDs to operate on")
 
-# 批量导入的密钥项模型
+# Batch import key item model
 class ImportKeyItem(BaseModel):
-    name: str = Field(..., description="密钥名称")
-    key: str = Field(..., description="密钥值")
-    weight: int = Field(1, description="权重")
-    rate_limit: int = Field(60, description="速率限制(每分钟请求数)")
-    enabled: bool = Field(True, description="是否启用")
-    notes: Optional[str] = Field(None, description="备注")
+    name: str = Field(..., description="Key name")
+    key: str = Field(..., description="Key value")
+    weight: int = Field(1, description="Weight")
+    rate_limit: int = Field(60, description="Rate limit (requests per minute)")
+    enabled: bool = Field(True, description="Enabled")
+    notes: Optional[str] = Field(None, description="Notes")
 
-# 批量导入模型
+# Batch import operation model
 class BatchImportOperation(BatchOperation):
-    keys: List[ImportKeyItem] = Field(..., description="要导入的密钥列表")
+    keys: List[ImportKeyItem] = Field(..., description="List of keys to import")
     key_ids: Optional[List[str]] = None
 
-# 系统配置更新模型
+# System configuration update model
 class ConfigUpdate(BaseModel):
-    PROXY_HOST: Optional[str] = Field(None, description="代理服务器主机")
-    PROXY_PORT: Optional[str] = Field(None, description="代理服务器端口")
-    PROXY_USER: Optional[str] = Field(None, description="代理服务器用户名")
-    PROXY_PASS: Optional[str] = Field(None, description="代理服务器密码")
-    BASE_URL: Optional[str] = Field(None, description="基础URL，用于图片访问地址")
-    IMAGE_LOCALIZATION: Optional[bool] = Field(None, description="是否启用图片本地化存储")
-    IMAGE_SAVE_DIR: Optional[str] = Field(None, description="图片保存目录")
-    save_to_env: bool = Field(True, description="是否保存到环境变量文件")
+    PROXY_HOST: Optional[str] = Field(None, description="Proxy server host")
+    PROXY_PORT: Optional[str] = Field(None, description="Proxy server port")
+    PROXY_USER: Optional[str] = Field(None, description="Proxy username")
+    PROXY_PASS: Optional[str] = Field(None, description="Proxy password")
+    BASE_URL: Optional[str] = Field(None, description="Base URL used for image access")
+    IMAGE_LOCALIZATION: Optional[bool] = Field(None, description="Enable local image storage")
+    IMAGE_SAVE_DIR: Optional[str] = Field(None, description="Image save directory")
+    save_to_env: bool = Field(True, description="Save to environment variable file")
 
-# 日志级别更新模型
+# Log level update model
 class LogLevelUpdate(BaseModel):
-    level: str = Field(..., description="日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL")
-    save_to_env: bool = Field(True, description="是否保存到环境变量文件")
+    level: str = Field(..., description="Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
+    save_to_env: bool = Field(True, description="Save to environment variable file")
 
-# JWT认证请求模型
+# JWT authentication request model
 class LoginRequest(BaseModel):
-    admin_key: str = Field(..., description="管理员密钥")
+    admin_key: str = Field(..., description="Admin key")
 
-# JWT令牌响应模型
+# JWT token response model
 class TokenResponse(BaseModel):
-    token: str = Field(..., description="JWT令牌")
-    expires_in: int = Field(..., description="有效期(秒)")
-    token_type: str = Field("bearer", description="令牌类型") 
+    token: str = Field(..., description="JWT token")
+    expires_in: int = Field(..., description="Expiration (seconds)")
+    token_type: str = Field("bearer", description="Token type")

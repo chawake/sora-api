@@ -10,9 +10,9 @@ from fastapi.exceptions import RequestValidationError
 from .config import Config
 from .key_manager import key_manager
 from .api import main_router
-from .api.dependencies import session_pool
+from .api.dependencies import session_pool 
 
-# 配置日志
+# Configure logging
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper()),
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -21,16 +21,16 @@ logging.basicConfig(
 
 logger = logging.getLogger("sora-api")
 
-# 创建FastAPI应用
+# Create FastAPI application
 app = FastAPI(
     title="OpenAI Compatible Sora API",
-    description="为Sora提供OpenAI兼容接口的API服务",
+    description="API service providing OpenAI-compatible interface for Sora",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# 配置CORS中间件
+# Configure CORS middleware
 origins = [
     "http://localhost",
     "http://localhost:8890",
@@ -46,121 +46,121 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# 异常处理
+# Exception handling
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """处理请求验证错误"""
+    """Handle request validation errors"""
     return JSONResponse(
         status_code=422,
-        content={"detail": f"请求验证错误: {str(exc)}"}
+        content={"detail": f"Request validation error: {str(exc)}"}
     )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """全局异常处理器"""
-    # 记录错误
-    logger.error(f"全局异常: {str(exc)}", exc_info=True)
+    """Global exception handler"""
+    # Log the error
+    logger.error(f"Global exception: {str(exc)}", exc_info=True)
     
-    # 如果是已知的HTTPException，保持原始状态码和详情
+    # If it's a known HTTPException, keep the original status code and details
     if isinstance(exc, HTTPException):
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.detail}
         )
     
-    # 其他异常返回500状态码
+    # Return 500 for other exceptions
     return JSONResponse(
         status_code=500,
-        content={"detail": f"服务器内部错误: {str(exc)}"}
+        content={"detail": f"Internal server error: {str(exc)}"}
     )
 
-# 应用启动和关闭事件
+# Application startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
-    """应用启动时执行的操作"""
+    """Operations to perform when the application starts"""
     global session_pool
-    # 创建共享会话池
+    # Create shared session pool
     session_pool = aiohttp.ClientSession()
-    logger.info("应用已启动，创建了全局会话池")
+    logger.info("Application started, created global session pool")
     
-    # 初始化时保存管理员密钥
+    # Save admin key on initialization
     Config.save_admin_key()
     
-    # 确保静态文件目录存在
+    # Ensure static file directories exist
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin"), exist_ok=True)
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin/js"), exist_ok=True)
     os.makedirs(os.path.join(Config.STATIC_DIR, "admin/css"), exist_ok=True)
     os.makedirs(Config.IMAGE_SAVE_DIR, exist_ok=True)
     
-    # 输出图片保存目录的信息 
-    logger.info(f"图片保存目录: {Config.IMAGE_SAVE_DIR}")
+    # Output image save directory information
+    logger.info(f"Image save directory: {Config.IMAGE_SAVE_DIR}")
     
-    # 图片访问URL
+    # Image access URL
     base_url = Config.BASE_URL.rstrip('/')
     if Config.STATIC_PATH_PREFIX:
-        logger.info(f"图片将通过 {base_url}{Config.STATIC_PATH_PREFIX}/images/<filename> 访问")
+        logger.info(f"Images will be accessible at {base_url}{Config.STATIC_PATH_PREFIX}/images/<filename>")
     else:
-        logger.info(f"图片将通过 {base_url}/images/<filename> 访问")
+        logger.info(f"Images will be accessible at {base_url}/images/<filename>")
     
-    # 打印配置信息
+    # Print configuration information
     Config.print_config()
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """应用关闭时执行的操作"""
-    # 关闭会话池
+    """Operations to perform when the application shuts down"""
+    # Close the session pool
     if session_pool:
         await session_pool.close()
-    logger.info("应用已关闭，清理了全局会话池")
+    logger.info("Application shut down, cleaned up global session pool")
 
-# 添加根路径路由
+# Add root path route
 @app.get("/")
 async def root():
-    """根路径，返回系统状态信息"""
+    """Root path, returns system status information"""
     return {
         "status": "OK",
-        "message": "系统运行正常",
+        "message": "System is running normally",
         "version": app.version,
         "name": app.title
     }
 
-# 挂载静态文件目录
+# Mount static file directory
 app.mount("/static", StaticFiles(directory=Config.STATIC_DIR), name="static")
 
-# 通用图片访问路由 - 支持多种路径格式
+# General image access route - supports multiple path formats
 @app.get("/images/{filename}")
 @app.get("/static/images/{filename}")
 async def get_image(filename: str):
-    """处理图片请求 - 无论保存在哪里"""
-    # 直接从IMAGE_SAVE_DIR获取图片
+    """Handle image requests - no matter where they're stored"""
+    # Get image directly from IMAGE_SAVE_DIR
     file_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
     else:
-        logger.warning(f"请求的图片不存在: {file_path}")
-        raise HTTPException(status_code=404, detail="图片不存在")
+        logger.warning(f"Requested image does not exist: {file_path}")
+        raise HTTPException(status_code=404, detail="Image not found")
 
-# 添加静态文件路径前缀的兼容路由
+# Add compatible route for static file path prefix
 if Config.STATIC_PATH_PREFIX:
     prefix_path = Config.STATIC_PATH_PREFIX.lstrip("/")
     
     @app.get(f"/{prefix_path}/images/{{filename}}")
     async def get_prefixed_image(filename: str):
-        """处理带前缀的图片请求"""
+        """Handle prefixed image requests"""
         return await get_image(filename)
 
-# 管理界面路由
+# Admin panel route
 @app.get("/admin")
 async def admin_panel():
-    """返回管理面板HTML页面"""
+    """Return the admin panel HTML page"""
     return FileResponse(os.path.join(Config.STATIC_DIR, "admin/index.html"))
 
-# 现在使用JWT认证，不再需要直接暴露管理员密钥
+# Now using JWT authentication, no need to expose admin key directly
 
-# 注册所有API路由
+# Register all API routes
 app.include_router(main_router)
 
-# 应用入口点（供uvicorn直接调用）
+# Application entry point (for uvicorn direct call)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

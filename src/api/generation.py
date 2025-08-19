@@ -8,10 +8,10 @@ from ..api.dependencies import verify_api_key, get_sora_client_dep
 from ..services.image_service import get_generation_result, get_task_api_key
 from ..key_manager import key_manager
 
-# 设置日志
+# Configure logging
 logger = logging.getLogger("sora-api.generation")
 
-# 创建路由
+# Create router
 router = APIRouter()
 
 @router.get("/generation/{request_id}")
@@ -21,44 +21,44 @@ async def check_generation_status(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    检查图像生成任务的状态
+    Check the status of an image generation task.
     
     Args:
-        request_id: 要查询的请求ID
-        client_info: Sora客户端信息（由依赖提供）
-        api_key: API密钥（由依赖提供）
+        request_id: The request ID to query.
+        client_info: Sora client info (provided by dependency).
+        api_key: API key (provided by dependency).
     
     Returns:
-        包含任务状态和结果的JSON响应
+        A JSON response containing task status and result.
     """
-    # 获取任务对应的原始API密钥
+    # Get the original API key used for this task
     task_api_key = get_task_api_key(request_id)
     
-    # 如果找到任务对应的API密钥，则使用该密钥获取客户端
+    # If found, use that key to get the client
     if task_api_key:
-        # 获取使用特定API密钥的客户端
+        # Get a client using the specific API key
         specific_client_dep = get_sora_client_dep(specific_key=task_api_key)
         client_info = await specific_client_dep(api_key)
     
-    # 解析客户端信息
+    # Parse client info
     _, sora_auth_token = client_info
     
-    # 记录开始时间
+    # Record start time
     start_time = time.time()
     success = False
     
     try:
-        # 获取任务结果
+        # Get task result
         result = get_generation_result(request_id)
         
         if result.get("status") == "not_found":
-            raise HTTPException(status_code=404, detail=f"找不到生成任务: {request_id}")
+            raise HTTPException(status_code=404, detail=f"Generation task not found: {request_id}")
         
         if result.get("status") == "completed":
-            # 任务已完成，返回结果
+            # Task completed; return result
             image_urls = result.get("image_urls", [])
             
-            # 构建OpenAI兼容的响应
+            # Build an OpenAI-compatible response
             response = {
                 "id": request_id,
                 "object": "chat.completion",
@@ -84,8 +84,8 @@ async def check_generation_status(
             success = True
             
         elif result.get("status") == "failed":
-            # 任务失败
-            message = result.get("message", f"```think\n生成失败: {result.get('error', '未知错误')}\n```")
+            # Task failed
+            message = result.get("message", f"```think\nGeneration failed: {result.get('error', 'unknown error')}\n```")
             
             response = {
                 "id": request_id,
@@ -110,9 +110,9 @@ async def check_generation_status(
             }
             success = False
             
-        else:  # 处理中
-            # 任务仍在处理中
-            message = result.get("message", "```think\n正在生成图像，请稍候...\n```")
+        else:  # processing
+            # Task is still in progress
+            message = result.get("message", "```think\nGenerating image, please wait...\n```")
             
             response = {
                 "id": request_id,
@@ -137,23 +137,23 @@ async def check_generation_status(
             }
             success = True
             
-        # 记录请求结果
+        # Record request result
         response_time = time.time() - start_time
         key_manager.record_request_result(sora_auth_token, success, response_time)
         
-        # 返回响应
+        # Return response
         return JSONResponse(content=response)
         
     except HTTPException:
-        # 直接重新抛出HTTP异常
+        # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        # 处理其他异常
+        # Handle other exceptions
         success = False
-        logger.error(f"检查任务状态失败: {str(e)}", exc_info=True)
+        logger.error(f"Failed to check task status: {str(e)}", exc_info=True)
         
-        # 记录请求结果
+        # Record request result
         response_time = time.time() - start_time
         key_manager.record_request_result(sora_auth_token, success, response_time)
         
-        raise HTTPException(status_code=500, detail=f"检查任务状态失败: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to check task status: {str(e)}")

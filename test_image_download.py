@@ -3,123 +3,123 @@ import os
 import sys
 import logging
 
-# 配置日志
+# Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# 添加src目录到Python路径
+# Add src directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.utils import download_and_save_image, localize_image_urls
 from src.config import Config
 
-# 设置为True启用本地化
+# Set to True to enable localization
 Config.IMAGE_LOCALIZATION = True
-# 打开调试日志
+# Enable debug logging
 os.environ["IMAGE_DEBUG"] = "true"
-# 确保目录存在
+# Ensure directory exists
 os.makedirs(Config.IMAGE_SAVE_DIR, exist_ok=True)
 
 async def test_single_download():
-    """测试单个图片下载"""
-    # 使用一个可靠的图片URL进行测试
+    """Test single image download"""
+    # Use a reliable image URL for testing
     test_url = "https://pic.baidu.com/feed/b90e7bec54e736d1f9ddbe94c2691f254d4ade13.jpeg"
-    print(f"测试单个图片下载: {test_url}")
+    print(f"Testing single image download: {test_url}")
     
     local_url = await download_and_save_image(test_url)
-    print(f"下载结果: {local_url}")
+    print(f"Download result: {local_url}")
     
-    # 检查文件是否真的下载了
+    # Check if the file was actually downloaded
     if local_url.startswith("http"):
-        # 处理完整URL的情况
+        # Handle full URL case
         url_path = local_url.split(Config.BASE_URL, 1)[-1]
         if url_path.startswith("/static/"):
             relative_path = url_path[len("/static/"):]
             file_path = os.path.join(Config.STATIC_DIR, relative_path)
-            print(f"完整URL转换为文件路径: {file_path}")
+            print(f"Full URL converted to file path: {file_path}")
             
             if os.path.exists(file_path):
-                print(f"文件存在: {file_path}, 大小: {os.path.getsize(file_path)} 字节")
+                print(f"File exists: {file_path}, size: {os.path.getsize(file_path)} bytes")
             else:
-                print(f"文件不存在: {file_path}")
-                # 尝试查找可能的文件
+                print(f"File does not exist: {file_path}")
+                # Try to find possible files
                 dir_path = os.path.dirname(file_path)
                 if os.path.exists(dir_path):
-                    print(f"目录存在: {dir_path}")
-                    print(f"目录内容: {os.listdir(dir_path)}")
+                    print(f"Directory exists: {dir_path}")
+                    print(f"Directory contents: {os.listdir(dir_path)}")
                 else:
-                    print(f"目录不存在: {dir_path}")
+                    print(f"Directory does not exist: {dir_path}")
         else:
-            print(f"URL格式异常: {local_url}")
+            print(f"URL format exception: {local_url}")
     elif local_url.startswith("/static/"):
-        # 从URL恢复实际的文件路径
+        # Restore actual file path from URL
         relative_path = local_url[len("/static/"):]
         file_path = os.path.join(Config.STATIC_DIR, relative_path)
-        print(f"相对URL转换为文件路径: {file_path}")
+        print(f"Relative URL converted to file path: {file_path}")
         
         if os.path.exists(file_path):
-            print(f"文件存在: {file_path}, 大小: {os.path.getsize(file_path)} 字节")
+            print(f"File exists: {file_path}, size: {os.path.getsize(file_path)} bytes")
         else:
-            print(f"文件不存在: {file_path}")
+            print(f"File does not exist: {file_path}")
     else:
-        print("下载失败，返回了原始URL")
+        print("Download failed, returning original URL")
 
 async def test_multiple_downloads():
-    """测试多个图片下载"""
+    """Test multiple image downloads"""
     test_urls = [
         "https://pic.baidu.com/feed/b90e7bec54e736d1f9ddbe94c2691f254d4ade13.jpeg",
         "https://pic1.zhimg.com/v2-b78b719d8782ad5146851b87bbd3a9fb_r.jpg"
     ]
-    print(f"\n测试多个图片下载: {test_urls}")
+    print(f"\nTesting multiple image downloads: {test_urls}")
     
     local_urls = await localize_image_urls(test_urls)
     
-    print(f"本地化结果: {local_urls}")
+    print(f"Localization results: {local_urls}")
     
-    # 验证所有文件是否下载成功
+    # Verify all files were downloaded successfully
     for i, url in enumerate(local_urls):
-        print(f"\n检查文件 {i+1}:")
+        print(f"\nChecking file {i+1}:")
         if url.startswith("http"):
-            # 处理完整URL的情况
+            # Handle full URL case
             if url.startswith(Config.BASE_URL):
                 url_path = url.split(Config.BASE_URL, 1)[-1]
                 if url_path.startswith("/static/"):
                     relative_path = url_path[len("/static/"):]
                     file_path = os.path.join(Config.STATIC_DIR, relative_path)
-                    print(f"完整URL转换为文件路径: {file_path}")
+                    print(f"Full URL converted to file path: {file_path}")
                     
                     if os.path.exists(file_path):
-                        print(f"文件 {i+1} 存在: {file_path}, 大小: {os.path.getsize(file_path)} 字节")
+                        print(f"File {i+1} exists: {file_path}, size: {os.path.getsize(file_path)} bytes")
                     else:
-                        print(f"文件 {i+1} 不存在: {file_path}")
-                        # 尝试查找可能的文件
+                        print(f"File {i+1} does not exist: {file_path}")
+                        # Try to find possible files
                         dir_path = os.path.dirname(file_path)
                         if os.path.exists(dir_path):
-                            print(f"目录存在: {dir_path}")
-                            print(f"目录内容: {os.listdir(dir_path)}")
+                            print(f"Directory exists: {dir_path}")
+                            print(f"Directory contents: {os.listdir(dir_path)}")
                         else:
-                            print(f"目录不存在: {dir_path}")
+                            print(f"Directory does not exist: {dir_path}")
                 else:
-                    print(f"URL格式异常: {url}")
+                    print(f"URL format exception: {url}")
             else:
-                print(f"文件 {i+1} 下载失败，返回了原始URL: {url}")
+                print(f"File {i+1} download failed, returning original URL: {url}")
         elif url.startswith("/static/"):
-            # 从URL恢复实际的文件路径
+            # Restore actual file path from URL
             relative_path = url[len("/static/"):]
             file_path = os.path.join(Config.STATIC_DIR, relative_path)
-            print(f"相对URL转换为文件路径: {file_path}")
+            print(f"Relative URL converted to file path: {file_path}")
             
             if os.path.exists(file_path):
-                print(f"文件 {i+1} 存在: {file_path}, 大小: {os.path.getsize(file_path)} 字节")
+                print(f"File {i+1} exists: {file_path}, size: {os.path.getsize(file_path)} bytes")
             else:
-                print(f"文件 {i+1} 不存在: {file_path}")
+                print(f"File {i+1} does not exist: {file_path}")
         else:
-            print(f"文件 {i+1} 下载失败，返回了原始URL: {url}")
+            print(f"File {i+1} download failed, returning original URL: {url}")
 
 async def main():
-    print(f"配置信息:")
+    print(f"Configuration:")
     print(f"IMAGE_LOCALIZATION: {Config.IMAGE_LOCALIZATION}")
     print(f"STATIC_DIR: {Config.STATIC_DIR}")
     print(f"IMAGE_SAVE_DIR: {Config.IMAGE_SAVE_DIR}")

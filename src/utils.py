@@ -7,59 +7,59 @@ import ssl
 from urllib.parse import urlparse
 from .config import Config
 
-# 初始化日志
+# Initialize logging
 logger = logging.getLogger("sora-api.utils")
 
-# 图片本地化调试开关
+# Image localization debug flag
 IMAGE_DEBUG = os.getenv("IMAGE_DEBUG", "").lower() in ("true", "1", "yes")
 
-# 修复Python 3.11之前版本中HTTPS代理处理HTTPS请求的问题
-# 参考: https://docs.aiohttp.org/en/stable/client_advanced.html#proxy-support
+# Fix HTTPS proxy handling for HTTPS requests in Python versions before 3.11
+# Reference: https://docs.aiohttp.org/en/stable/client_advanced.html#proxy-support
 try:
     import aiohttp.connector
     orig_create_connection = aiohttp.connector.TCPConnector._create_connection
 
     async def patched_create_connection(self, req, traces, timeout):
         if req.ssl and req.proxy and req.proxy.scheme == 'https':
-            # 为代理连接创建SSL上下文
+            # Create SSL context for proxy connection
             proxy_ssl = ssl.create_default_context()
             req.proxy_ssl = proxy_ssl
             
             if IMAGE_DEBUG:
-                logger.debug("已应用HTTPS代理补丁")
+                logger.debug("Applied HTTPS proxy patch")
         
         return await orig_create_connection(self, req, traces, timeout)
     
-    # 应用猴子补丁
+    # Apply monkey patch
     aiohttp.connector.TCPConnector._create_connection = patched_create_connection
     
     if IMAGE_DEBUG:
-        logger.debug("已启用aiohttp HTTPS代理支持补丁")
+        logger.debug("Enabled aiohttp HTTPS proxy support patch")
 except Exception as e:
-    logger.warning(f"应用HTTPS代理补丁失败: {e}")
+    logger.warning(f"Failed to apply HTTPS proxy patch: {e}")
 
 async def download_and_save_image(image_url: str) -> str:
     """
-    下载图片并保存到本地
+    Download image and save to local storage
     
     Args:
-        image_url: 图片URL
+        image_url: Image URL
         
     Returns:
-        本地化后的图片URL
+        Localized image URL
     """
-    # 如果未启用本地化或URL已经是本地路径，直接返回
+    # If localization is disabled or URL is already a local path, return as is
     if not Config.IMAGE_LOCALIZATION:
         if IMAGE_DEBUG:
-            logger.debug(f"图片本地化未启用，返回原始URL: {image_url}")
+            logger.debug(f"Image localization not enabled, returning original URL: {image_url}")
         return image_url
     
-    # 检查是否已经是本地URL
-    # 准备URL检测所需的信息
+    # Check if URL is already local
+    # Prepare information needed for URL detection
     parsed_base_url = urlparse(Config.BASE_URL)
     base_path = parsed_base_url.path.rstrip('/')
     
-    # 直接检查常见的图片URL模式
+    # Directly check common image URL patterns
     local_url_patterns = [
         "/images/",
         "/static/images/",
@@ -67,7 +67,7 @@ async def download_and_save_image(image_url: str) -> str:
         f"{base_path}/static/images/"
     ]
     
-    # 检查是否有自定义前缀
+    # Check for custom prefix
     if Config.STATIC_PATH_PREFIX:
         prefix = Config.STATIC_PATH_PREFIX
         if not prefix.startswith('/'):
@@ -75,32 +75,32 @@ async def download_and_save_image(image_url: str) -> str:
         local_url_patterns.append(f"{prefix}/images/")
         local_url_patterns.append(f"{base_path}{prefix}/images/")
     
-    # 检查是否符合任何本地URL模式
+    # Check if URL matches any local URL pattern
     is_local_url = any(pattern in image_url for pattern in local_url_patterns)
     
     if is_local_url:
         if IMAGE_DEBUG:
-            logger.debug(f"URL已是本地图片路径: {image_url}")
+            logger.debug(f"URL is already a local image path: {image_url}")
         
-        # 如果是相对路径，补充完整的URL
+        # If it's a relative path, make it a full URL
         if image_url.startswith("/"):
             return f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{image_url}"
         return image_url
     
     try:
-        # 生成文件名和保存路径
+        # Generate filename and save path
         parsed_url = urlparse(image_url)
         file_extension = os.path.splitext(parsed_url.path)[1] or ".png"
         filename = f"{uuid.uuid4()}{file_extension}"
         save_path = os.path.join(Config.IMAGE_SAVE_DIR, filename)
         
-        # 确保保存目录存在
+        # Ensure save directory exists
         os.makedirs(Config.IMAGE_SAVE_DIR, exist_ok=True)
         
         if IMAGE_DEBUG:
-            logger.debug(f"下载图片: {image_url} -> {save_path}")
+            logger.debug(f"Downloading image: {image_url} -> {save_path}")
         
-        # 配置代理
+        # Configure proxy
         proxy = None
         if Config.PROXY_HOST and Config.PROXY_PORT:
             proxy_auth = None
@@ -109,14 +109,14 @@ async def download_and_save_image(image_url: str) -> str:
             
             proxy_url = f"http://{Config.PROXY_HOST}:{Config.PROXY_PORT}"
             if IMAGE_DEBUG:
-                auth_info = f" (使用认证)" if proxy_auth else ""
-                logger.debug(f"使用代理: {proxy_url}{auth_info}")
+                auth_info = f" (with auth)" if proxy_auth else ""
+                logger.debug(f"Using proxy: {proxy_url}{auth_info}")
             proxy = proxy_url
         
-        # 下载图片
+        # Download image
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            # 创建请求参数
+            # Create request parameters
             request_kwargs = {"timeout": 30}
             if proxy:
                 request_kwargs["proxy"] = proxy
@@ -125,80 +125,80 @@ async def download_and_save_image(image_url: str) -> str:
             
             async with session.get(image_url, **request_kwargs) as response:
                 if response.status != 200:
-                    logger.warning(f"下载失败，状态码: {response.status}, URL: {image_url}")
+                    logger.warning(f"Download failed with status: {response.status}, URL: {image_url}")
                     return image_url
                 
                 content = await response.read()
                 if not content:
-                    logger.warning("下载内容为空")
+                    logger.warning("Downloaded content is empty")
                     return image_url
                 
-                # 保存图片
+                # Save image
                 async with aiofiles.open(save_path, "wb") as f:
                     await f.write(content)
         
-        # 检查文件是否成功保存
+        # Verify file was saved successfully
         if not os.path.exists(save_path) or os.path.getsize(save_path) == 0:
-            logger.warning(f"图片保存失败: {save_path}")
+            logger.warning(f"Failed to save image: {save_path}")
             if os.path.exists(save_path):
                 os.remove(save_path)
             return image_url
         
-        # 返回本地URL
-        # 获取文件名
+        # Return local URL
+        # Get filename
         filename = os.path.basename(save_path)
         
-        # 解析基础URL
+        # Parse base URL
         parsed_base_url = urlparse(Config.BASE_URL)
         base_path = parsed_base_url.path.rstrip('/')
         
-        # 使用固定的图片URL格式
+        # Use fixed image URL format
         relative_url = f"/images/{filename}"
         
-        # 如果设置了STATIC_PATH_PREFIX，优先使用该前缀
+        # If STATIC_PATH_PREFIX is set, use it as prefix
         if Config.STATIC_PATH_PREFIX:
             prefix = Config.STATIC_PATH_PREFIX
             if not prefix.startswith('/'):
                 prefix = f"/{prefix}"
             relative_url = f"{prefix}/images/{filename}"
         
-        # 如果BASE_URL有子路径，添加到相对路径前
+        # If BASE_URL has subpath, prepend it to relative URL
         if base_path:
             relative_url = f"{base_path}{relative_url}"
         
-        # 处理重复斜杠
+        # Handle duplicate slashes
         while "//" in relative_url:
             relative_url = relative_url.replace("//", "/")
         
-        # 生成完整URL
+        # Generate full URL
         full_url = f"{parsed_base_url.scheme}://{parsed_base_url.netloc}{relative_url}"
         
         if IMAGE_DEBUG:
-            logger.debug(f"图片保存成功: {full_url}")
-            logger.debug(f"图片保存路径: {save_path}")
+            logger.debug(f"Image saved successfully: {full_url}")
+            logger.debug(f"Image save path: {save_path}")
         
         return full_url
     except Exception as e:
-        logger.error(f"图片下载失败: {str(e)}", exc_info=IMAGE_DEBUG)
+        logger.error(f"Failed to download image: {str(e)}", exc_info=IMAGE_DEBUG)
         return image_url
 
 async def localize_image_urls(image_urls: list) -> list:
     """
-    批量将图片URL本地化
+    Localize multiple image URLs
     
     Args:
-        image_urls: 图片URL列表
+        image_urls: List of image URLs
         
     Returns:
-        本地化后的URL列表
+        List of localized URLs
     """
     if not Config.IMAGE_LOCALIZATION or not image_urls:
         return image_urls
     
     if IMAGE_DEBUG:
-        logger.debug(f"本地化 {len(image_urls)} 个URL: {image_urls}")
+        logger.debug(f"Localizing {len(image_urls)} URLs: {image_urls}")
     else:
-        logger.info(f"本地化 {len(image_urls)} 个图片")
+        logger.info(f"Localizing {len(image_urls)} images")
     
     localized_urls = []
     for url in image_urls:
