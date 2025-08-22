@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('saveConfig').addEventListener('click', saveConfig);
 });
 
-// 获取当前配置
+// 获取当前配置 
 function fetchConfig() {
     fetch('/api/config', {
         method: 'GET',
@@ -16,47 +16,47 @@ function fetchConfig() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('获取配置失败，请检查管理员密钥是否正确');
+            throw new Error('Failed to fetch configuration. Please check if the admin key is correct.');
         }
         return response.json();
     })
     .then(data => {
-        // 代理设置
+        // Proxy settings
         document.getElementById('proxy_host').value = data.PROXY_HOST || '';
         document.getElementById('proxy_port').value = data.PROXY_PORT || '';
         document.getElementById('proxy_user').value = data.PROXY_USER || '';
         
-        // 代理密码字段
+        // Proxy password field
         const proxyPassField = document.getElementById('proxy_pass');
         if (data.PROXY_PASS && data.PROXY_PASS !== '') {
-            // 设置代理密码占位符，防止用户修改
-            proxyPassField.setAttribute('placeholder', '已设置代理密码 (请保留空)');
+            // Set proxy password placeholder to prevent user modification
+            proxyPassField.setAttribute('placeholder', 'Proxy password set (leave blank to keep)');
         } else {
-            proxyPassField.setAttribute('placeholder', '代理密码');
+            proxyPassField.setAttribute('placeholder', 'Proxy Password');
         }
         
-        // 图像本地化设置
+        // Image localization settings
         document.getElementById('image_localization').checked = data.IMAGE_LOCALIZATION || false;
         document.getElementById('image_save_dir').value = data.IMAGE_SAVE_DIR || 'src/static/images';
     })
     .catch(error => {
-        showMessage('错误', error.message, 'danger');
+        showMessage('Error', error.message, 'danger');
     });
 }
 
-// 保存配置
+// Save configuration
 function saveConfig() {
-    // 获取代理设置
+    // Get proxy settings
     const proxyHost = document.getElementById('proxy_host').value.trim();
     const proxyPort = document.getElementById('proxy_port').value.trim();
     const proxyUser = document.getElementById('proxy_user').value.trim();
     const proxyPass = document.getElementById('proxy_pass').value.trim();
     
-    // 获取图像本地化设置
+    // Get image localization settings
     const imageLocalization = document.getElementById('image_localization').checked;
     const imageSaveDir = document.getElementById('image_save_dir').value.trim();
     
-    // 创建配置对象
+    // Create configuration object
     const config = {
         PROXY_HOST: proxyHost,
         PROXY_PORT: proxyPort,
@@ -66,7 +66,7 @@ function saveConfig() {
         save_to_env: true
     };
     
-    // 如果代理密码存在，则添加到配置对象中
+    // If proxy password exists, add it to the configuration object
     if (proxyPass) {
         config.PROXY_PASS = proxyPass;
     }
@@ -81,22 +81,22 @@ function saveConfig() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('保存配置失败，请检查管理员密钥是否正确');
+            throw new Error('Failed to save configuration. Please check if the admin key is correct.');
         }
         return response.json();
     })
     .then(data => {
-        showMessage('成功', '配置已保存', 'success');
+        showMessage('Success', 'Configuration saved', 'success');
         
-        // 成功后，立即重新获取配置以更新显示
+        // After success, immediately re-fetch configuration to update display
         setTimeout(fetchConfig, 1000);
     })
     .catch(error => {
-        showMessage('错误', error.message, 'danger');
+        showMessage('Error', error.message, 'danger');
     });
 }
 
-// 获取管理员密钥
+// Get admin key
 function getAdminKey() {
     return localStorage.getItem('adminKey') || '';
 }
