@@ -409,7 +409,7 @@ function showAdminPanel() {
     document.querySelector('#sidebar li:first-child').classList.add('active');
     
     // 更新页面标题
-    document.getElementById('current-page-title').textContent = '仪表盘';
+    document.getElementById('current-page-title').textContent = 'Dashboard';
 }
 
 // 显示管理员密钥信息
@@ -419,7 +419,7 @@ function displayAdminKey() {
     
     // 显示密钥部分信息
     const keyDisplay = adminKey.substring(0, 6) + '...' + adminKey.substring(adminKey.length - 4);
-    document.getElementById('admin-key-display').textContent = '管理员: ' + keyDisplay;
+    document.getElementById('admin-key-display').textContent = 'Admin: ' + keyDisplay;
 }
 
 // API请求包装函数，处理token刷新逻辑
@@ -432,7 +432,7 @@ async function apiRequest(url, options = {}) {
         if (!refreshSuccess) {
             // token刷新失败，需要重新登录
             handleLogout();
-            showToast('登录已过期，请重新登录', 'warning');
+            showToast('Session expired. Please log in again', 'warning');
             return null;
         }
     }
@@ -467,7 +467,7 @@ async function apiRequest(url, options = {}) {
             
             // 刷新失败或重试失败，需要重新登录
             handleLogout();
-            showToast('登录已过期，请重新登录', 'warning');
+            showToast('Session expired. Please log in again', 'warning');
             return null;
         }
         
@@ -476,16 +476,16 @@ async function apiRequest(url, options = {}) {
             // 尝试解析错误消息
             try {
                 const errorData = await response.json();
-                throw new Error(`请求失败: ${response.status} - ${errorData.detail || errorData.message || response.statusText}`);
+                throw new Error(`Request failed: ${response.status} - ${errorData.detail || errorData.message || response.statusText}`);
             } catch (e) {
-                throw new Error(`请求失败: ${response.status} ${response.statusText}`);
+                throw new Error(`Request failed: ${response.status} ${response.statusText}`);
             }
         }
         
         return await response.json();
     } catch (error) {
-        console.error('API请求错误:', error);
-        showToast(`请求失败: ${error.message}`, 'error');
+        console.error('API request error:', error);
+        showToast(`Request failed: ${error.message}`, 'error');
         return null;
     }
 }
@@ -494,7 +494,7 @@ async function apiRequest(url, options = {}) {
 async function loadKeys() {
     try {
         // 显示加载中
-        document.getElementById('keys-table-body').innerHTML = '<tr><td colspan="9" class="text-center">加载中...</td></tr>';
+        document.getElementById('keys-table-body').innerHTML = '<tr><td colspan="9" class="text-center">Loading...</td></tr>';
         
         const data = await apiRequest('/api/keys');
         if (data) {
@@ -502,9 +502,9 @@ async function loadKeys() {
             renderKeysTable(keysData);
         }
     } catch (error) {
-        console.error('加载密钥失败:', error);
+        console.error('Failed to load keys:', error);
         document.getElementById('keys-table-body').innerHTML = 
-            `<tr><td colspan="9" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
+            `<tr><td colspan="9" class="text-center text-danger">Load failed: ${error.message}</td></tr>`;
     }
 }
 
@@ -514,7 +514,7 @@ function renderKeysTable(keys) {
     tableBody.innerHTML = '';
     
     if (keys.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">暂无密钥数据</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">No key data</td></tr>';
         return;
     }
     
@@ -528,8 +528,8 @@ function renderKeysTable(keys) {
         const row = document.createElement('tr');
         
         // 创建时间和最后使用时间格式化
-        const createDate = key.created_at ? new Date(key.created_at * 1000).toLocaleString() : '未知';
-        const lastUsedDate = key.last_used ? new Date(key.last_used * 1000).toLocaleString() : '从未使用';
+        const createDate = key.created_at ? new Date(key.created_at * 1000).toLocaleString() : 'Unknown';
+        const lastUsedDate = key.last_used ? new Date(key.last_used * 1000).toLocaleString() : 'Never used';
         
         // 确定密钥状态
         let statusText = '';
@@ -539,14 +539,14 @@ function renderKeysTable(keys) {
         
         if (key.temp_disabled_until) {
             // 临时禁用 - 使用格式化后的时间
-            statusText = '临时禁用';
+            statusText = 'Temporarily Disabled';
             statusClass = 'status-temp-disabled';
             
             // 优先使用服务器返回的格式化时间
             const enableTimeText = key.temp_disabled_until_formatted || 
                                   new Date(key.temp_disabled_until * 1000).toLocaleString();
             
-            statusTitle = `将于 ${enableTimeText} 恢复`;
+            statusTitle = `Will be re-enabled at ${enableTimeText}`;
             
             // 如果有剩余时间信息，添加可读性更强的显示
             if (key.temp_disabled_remaining !== undefined) {
@@ -557,24 +557,24 @@ function renderKeysTable(keys) {
                     const minutes = Math.floor((remainingSecs % 3600) / 60);
                     const seconds = remainingSecs % 60;
                     
-                    remainingTimeText = `剩余 ${hours}小时${minutes}分钟`;
+                    remainingTimeText = `Remaining ${hours}h ${minutes}m`;
                 } else {
-                    remainingTimeText = '即将恢复';
+                    remainingTimeText = 'Resuming soon';
                 }
             }
         } else if (key.is_enabled) {
             // 启用
-            statusText = '启用';
+            statusText = 'Enabled';
             statusClass = 'status-enabled';
         } else {
             // 永久禁用
-            statusText = '禁用';
+            statusText = 'Disabled';
             statusClass = 'status-disabled';
         }
         
         row.innerHTML = `
             <td><input type="checkbox" name="key-checkbox" class="key-checkbox" value="${key.id}" data-id="${key.id}"></td>
-            <td>${key.name || '未命名'}</td>
+            <td>${key.name || 'Unnamed'}</td>
             <td class="key-value">${key.key}</td>
             <td>
                 <span class="status-badge ${statusClass}" title="${statusTitle}">
@@ -582,22 +582,22 @@ function renderKeysTable(keys) {
                 </span>
                 ${key.temp_disabled_until ? 
                     `<div class="small text-muted">
-                        启用于: ${key.temp_disabled_until_formatted || new Date(key.temp_disabled_until * 1000).toLocaleString()}
+                        Will be enabled at: ${key.temp_disabled_until_formatted || new Date(key.temp_disabled_until * 1000).toLocaleString()}
                         ${remainingTimeText ? `<br>${remainingTimeText}` : ''}
                     </div>` : ''}
             </td>
             <td>${key.weight || 1}</td>
-            <td>${key.max_rpm || 60}/分钟</td>
+            <td>${key.max_rpm || 60}/min</td>
             <td>${createDate}</td>
             <td>${lastUsedDate}</td>
             <td>
-                <button class="btn btn-sm btn-primary action-btn edit-key" data-id="${key.id}" title="编辑">
+                <button class="btn btn-sm btn-primary action-btn edit-key" data-id="${key.id}" title="Edit">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-danger action-btn delete-key" data-id="${key.id}" title="删除">
+                <button class="btn btn-sm btn-danger action-btn delete-key" data-id="${key.id}" title="Delete">
                     <i class="bi bi-trash"></i>
                 </button>
-                <button class="btn btn-sm btn-secondary action-btn copy-key" data-key="${key.key}" title="复制密钥">
+                <button class="btn btn-sm btn-secondary action-btn copy-key" data-key="${key.key}" title="Copy Key">
                     <i class="bi bi-clipboard"></i>
                 </button>
             </td>
@@ -622,7 +622,7 @@ function bindTableEvents() {
             await loadKeyDetails(keyId);
             
             // 显示模态框
-            document.getElementById('keyModalLabel').textContent = '编辑密钥';
+            document.getElementById('keyModalLabel').textContent = 'Edit Key';
             const keyModal = new bootstrap.Modal(document.getElementById('keyModal'));
             keyModal.show();
         });
@@ -634,7 +634,7 @@ function bindTableEvents() {
             const keyId = btn.getAttribute('data-id');
             const keyName = btn.closest('tr').children[1].textContent;
             
-            showConfirmDialog(`确定要删除密钥 "${keyName}" 吗？此操作不可恢复！`, () => {
+            showConfirmDialog(`Are you sure you want to delete the key "${keyName}"? This action cannot be undone!`, () => {
                 deleteKey(keyId);
             });
         });
@@ -645,8 +645,8 @@ function bindTableEvents() {
         btn.addEventListener('click', () => {
             const keyValue = btn.getAttribute('data-key');
             navigator.clipboard.writeText(keyValue)
-                .then(() => showToast('密钥已复制到剪贴板', 'success'))
-                .catch(err => showToast('复制失败: ' + err, 'error'));
+                .then(() => showToast('Key copied to clipboard', 'success'))
+                .catch(err => showToast('Copy failed: ' + err, 'error'));
         });
     });
 }
@@ -667,7 +667,7 @@ function renderPagination(totalKeys) {
     // 上一页
     const prevLi = document.createElement('li');
     prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage - 1}">上一页</a>`;
+    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>`;
     ul.appendChild(prevLi);
     
     // 页码
@@ -681,7 +681,7 @@ function renderPagination(totalKeys) {
     // 下一页
     const nextLi = document.createElement('li');
     nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage + 1}">下一页</a>`;
+    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>`;
     ul.appendChild(nextLi);
     
     pagination.appendChild(ul);
@@ -714,8 +714,8 @@ async function loadKeyDetails(keyId) {
         document.getElementById('key-enabled').checked = keyData.is_enabled;
         document.getElementById('key-notes').value = keyData.notes || '';
     } catch (error) {
-        console.error('加载密钥详情失败:', error);
-        showToast('加载密钥详情失败: ' + error.message, 'error');
+        console.error('Failed to load key details:', error);
+        showToast('Failed to load key details: ' + error.message, 'error');
     }
 }
 
@@ -733,7 +733,7 @@ async function saveKey() {
         };
         
         if (!keyData.name || !keyData.key_value) {
-            showToast('密钥名称和值不能为空', 'warning');
+            showToast('Key name and value cannot be empty', 'warning');
             return;
         }
         
@@ -773,10 +773,10 @@ async function saveKey() {
         }
         
         // 显示成功消息
-        showToast(keyId ? '密钥更新成功' : '密钥添加成功', 'success');
+        showToast(keyId ? 'Key updated successfully' : 'Key added successfully', 'success');
     } catch (error) {
-        console.error('保存密钥失败:', error);
-        showToast('保存密钥失败: ' + error.message, 'error');
+        console.error('Failed to save key:', error);
+        showToast('Failed to save key: ' + error.message, 'error');
     }
 }
 
@@ -786,16 +786,16 @@ async function testKey() {
         const keyValue = document.getElementById('key-value').value;
         
         if (!keyValue) {
-            showToast('请输入有效的密钥值', 'warning');
+            showToast('Please enter a valid key value', 'warning');
             return;
         }
         
-        const keyName = document.getElementById('key-name').value || '新密钥';
+        const keyName = document.getElementById('key-name').value || 'New Key';
         
         // 显示测试中状态
         const testButton = document.getElementById('test-key-btn');
         const originalText = testButton.innerHTML;
-        testButton.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> 测试中...';
+        testButton.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Testing...';
         testButton.disabled = true;
         
         const testData = {
@@ -818,17 +818,17 @@ async function testKey() {
         if (!result) return;
         
         if (result.status === "success") {
-            showToast(`测试成功: ${result.message || '密钥可用'}`, 'success');
+            showToast(`Test successful: ${result.message || 'Key is valid'}`, 'success');
         } else {
-            showToast(`测试失败: ${result.message || '密钥无法连接'}`, 'warning');
+            showToast(`Test failed: ${result.message || 'Key cannot connect'}`, 'warning');
         }
     } catch (error) {
-        console.error('测试密钥失败:', error);
-        showToast('测试密钥失败: ' + error.message, 'error');
+        console.error('Failed to test key:', error);
+        showToast('Failed to test key: ' + error.message, 'error');
         
         // 恢复按钮状态
         const testButton = document.getElementById('test-key-btn');
-        testButton.innerHTML = '<i class="bi bi-shield-check me-1"></i> 测试连接';
+        testButton.innerHTML = '<i class="bi bi-shield-check me-1"></i> Test Connection';
         testButton.disabled = false;
     }
 }
@@ -851,10 +851,10 @@ async function deleteKey(keyId) {
         }
         
         // 显示成功消息
-        showToast('密钥删除成功', 'success');
+        showToast('Key deleted successfully', 'success');
     } catch (error) {
-        console.error('删除密钥失败:', error);
-        showToast('删除密钥失败: ' + error.message, 'error');
+        console.error('Failed to delete key:', error);
+        showToast('Failed to delete key: ' + error.message, 'error');
     }
 }
 
@@ -887,17 +887,17 @@ async function batchOperation(action, keyIds) {
         // 显示成功消息
         let message = '';
         if (action === 'enable') {
-            message = '批量启用成功';
+            message = 'Batch enable successful';
         } else if (action === 'disable') {
-            message = '批量禁用成功';
+            message = 'Batch disable successful';
         } else if (action === 'delete') {
-            message = '批量删除成功';
+            message = 'Batch delete successful';
         }
         
         showToast(message, 'success');
     } catch (error) {
-        console.error('批量操作失败:', error);
-        showToast('批量操作失败: ' + error.message, 'error');
+        console.error('Batch operation failed:', error);
+        showToast('Batch operation failed: ' + error.message, 'error');
     }
 }
 
@@ -976,7 +976,7 @@ function renderRequestsChart(dailyUsage) {
     const chartData = {
         labels: lastDates.map(date => date.substring(5)), // 只显示月-日
         datasets: [{
-            label: '请求数',
+            label: 'Requests',
             data: lastDates.map(date => dailyUsage[date] || 0),
             backgroundColor: 'rgba(13, 110, 253, 0.4)',
             borderColor: 'rgba(13, 110, 253, 1)',
@@ -1039,7 +1039,7 @@ function renderKeysUsageChart(keysUsage) {
         
         // 计算"其他"的总和
         const othersSum = values.slice(7).reduce((sum, value) => sum + value, 0);
-        displayKeys.push('其他');
+        displayKeys.push('Others');
         displayValues.push(othersSum);
     }
     
@@ -1106,8 +1106,8 @@ async function loadSettings() {
             document.getElementById('image-localization').checked = data.IMAGE_LOCALIZATION || false;
             document.getElementById('image-save-dir').value = data.IMAGE_SAVE_DIR || 'src/static/images';
     } catch (error) {
-        console.error('加载设置失败:', error);
-        showToast('获取设置失败: ' + error.message, 'error');
+        console.error('Failed to load settings:', error);
+        showToast('Failed to get settings: ' + error.message, 'error');
     }
 }
 
@@ -1137,10 +1137,10 @@ async function saveSettings() {
         
         if (!result) return;
         
-        showToast('设置已保存', 'success');
+        showToast('Settings saved', 'success');
     } catch (error) {
-        console.error('保存设置失败:', error);
-        showToast('保存设置失败: ' + error.message, 'error');
+        console.error('Failed to save settings:', error);
+        showToast('Failed to save settings: ' + error.message, 'error');
     }
 }
 
@@ -1231,7 +1231,7 @@ async function loadKeyStats() {
             document.getElementById('active-keys').textContent = activeKeys;
             document.getElementById('disabled-keys').textContent = disabledKeys;
     } catch (error) {
-        console.error('加载密钥统计失败:', error);
+        console.error('Failed to load key stats:', error);
     }
 }
 
@@ -1270,7 +1270,7 @@ async function loadUsageStats() {
         renderRequestsChart(data.daily_usage || {});
         renderKeysUsageChart(data.keys_usage || {});
         
-        console.log("图表数据已更新:", {
+        console.log("Chart data updated:", {
             daily_usage: data.daily_usage,
             keys_usage: data.keys_usage
         });
@@ -1327,7 +1327,7 @@ async function loadRecentKeys() {
             });
         });
     } catch (error) {
-        console.error('加载最近密钥失败:', error);
+        console.error('Failed to load recent keys:', error);
     }
 }
 
@@ -1346,7 +1346,7 @@ function renderDashboardRequestsChart(dailyUsage) {
     const chartData = {
         labels: dates.map(date => date.substring(5)), // 只显示月-日
         datasets: [{
-            label: '每日请求数',
+            label: 'Daily requests',
             data: dates.map(date => (dailyUsage && dailyUsage[date]) || 0),
             borderColor: '#0d6efd',
             backgroundColor: 'rgba(13, 110, 253, 0.1)',
@@ -1476,7 +1476,7 @@ async function previewImport() {
                     rate_limit: rateLimit,
                     enabled: document.getElementById('auto-enable-keys').checked
                 });
-                console.log(`  dded to preview, now total ${importPreviewData.length} 个`);
+                console.log(`  Added to preview, now total ${importPreviewData.length}`);
             } catch (lineError) {
                 console.error(`Error processing line ${i+1}:`, lineError);
                 // 继续处理下一行
@@ -1500,8 +1500,8 @@ async function previewImport() {
             console.log('No valid keys found, disabling import button');
         }
     } catch (error) {
-        console.error('预览导入失败:', error);
-        showToast('预览失败: ' + error.message, 'danger');
+        console.error('Failed to preview import:', error);
+        showToast('Preview failed: ' + error.message, 'danger');
     }
 }
 
@@ -1545,7 +1545,7 @@ function renderImportPreview() {
         const moreRow = document.createElement('tr');
         const moreCell = document.createElement('td');
         moreCell.colSpan = 4;
-        moreCell.textContent = `... 另外 ${importPreviewData.length - 10} 个密钥未在预览中显示`;
+        moreCell.textContent = `... ${importPreviewData.length - 10} more keys not shown in preview`;
         moreCell.className = 'text-center text-muted';
         moreRow.appendChild(moreCell);
         tableBody.appendChild(moreRow);
